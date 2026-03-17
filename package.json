@@ -11,7 +11,13 @@
   "pnpm": {
     "allowedDeprecatedVersions": {
       "node-domexception": "1"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
