@@ -18,6 +18,10 @@ model User {
   role      String   @default("user")
   credits   Int      @default(3)
   createdAt DateTime @default(now())
+
+  photos      Photo[]
+  generations Generation[]
+  feedbacks   Feedback[]
 }
 
 model Wig {
@@ -27,6 +31,8 @@ model Wig {
   imageUrl    String
   price       Float?
   createdAt   DateTime @default(now())
+
+  generations Generation[]
 }
 
 model Photo {
@@ -34,6 +40,9 @@ model Photo {
   userId    String
   imageUrl  String
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  generations Generation[]
 }
 
 model Generation {
@@ -44,4 +53,17 @@ model Generation {
   resultImageUrl String?
   status         String
   createdAt      DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  photo Photo @relation(fields: [photoId], references: [id])
+  wig   Wig   @relation(fields: [wigId], references: [id])
+}
+
+model Feedback {
+  id           String   @id @default(cuid())
+  generationId String
+  userId       String
+  message      String
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
 }
