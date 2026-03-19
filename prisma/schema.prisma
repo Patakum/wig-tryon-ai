@@ -9,6 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // url      = env("DATABASE_URL")
 }
 
 model User {
@@ -37,24 +38,24 @@ model Wig {
 
 model Photo {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
   imageUrl  String
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   generations Generation[]
 }
 
 model Generation {
   id             String   @id @default(cuid())
-  userId         String
+  userId         String?
   photoId        String
   wigId          String
   resultImageUrl String?
   status         String
   createdAt      DateTime @default(now())
 
-  user  User  @relation(fields: [userId], references: [id])
+  user  User? @relation(fields: [userId], references: [id])
   photo Photo @relation(fields: [photoId], references: [id])
   wig   Wig   @relation(fields: [wigId], references: [id])
 }
