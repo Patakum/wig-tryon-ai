@@ -9,7 +9,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // url      = env("DATABASE_URL")
 }
 
 model User {
@@ -55,9 +54,10 @@ model Generation {
   status         String
   createdAt      DateTime @default(now())
 
-  user  User? @relation(fields: [userId], references: [id])
-  photo Photo @relation(fields: [photoId], references: [id])
-  wig   Wig   @relation(fields: [wigId], references: [id])
+  user      User?      @relation(fields: [userId], references: [id])
+  photo     Photo      @relation(fields: [photoId], references: [id])
+  wig       Wig        @relation(fields: [wigId], references: [id])
+  feedbacks Feedback[]
 }
 
 model Feedback {
@@ -66,5 +66,7 @@ model Feedback {
   userId       String
   message      String
   createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id])
+
+  generation Generation @relation(fields: [generationId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
 }

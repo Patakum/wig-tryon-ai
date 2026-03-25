@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { createWhatsAppLink } from '@/src/lib/whatsapp';
 import { prisma } from '@/src/lib/prisma';
+import Feedback from '@/src/components/Feedback';
 
 type ResultPageProps = {
   searchParams: Promise<{
@@ -79,6 +80,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
           Set WHATSAPP_PHONE in your environment to enable WhatsApp sharing.
         </p>
       )}
+      <Feedback id={id} />
     </div>
   );
 }
