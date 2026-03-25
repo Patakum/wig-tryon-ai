@@ -1,43 +1,93 @@
-'use client';
+import Image from 'next/image';
+import { notFound, redirect } from 'next/navigation';
+import GenerateButton from '../../components/GenerateButton';
+import { prisma } from '@/src/lib/prisma';
 
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
-import axios from 'axios';
+type PreviewPageProps = {
+  searchParams: Promise<{
+    photoId?: string;
+    wigId?: string;
+  }>;
+};
 
-export default function PreviewPage() {
-  const params = useSearchParams();
-  const router = useRouter();
+export default async function PreviewPage({ searchParams }: PreviewPageProps) {
+  const { photoId, wigId } = await searchParams;
 
-  const photoId = params.get('photoId');
-  const wigId = params.get('wigId');
+  if (!wigId) {
+    redirect('/catalog');
+  }
 
-  const [loading, setLoading] = useState(false);
+  if (!photoId) {
+    redirect(`/upload?wigId=${wigId}`);
+  }
 
-  const handleGenerate = async () => {
-    setLoading(true);
+  const [photo, wig] = await Promise.all([
+    prisma.photo.findUnique({
+      where: { id: photoId },
+    }),
+    prisma.wig.findUnique({
+      where: { id: wigId },
+    }),
+  ]);
 
-    const res = await axios.post('/api/generate', {
-      photoId,
-      wigId,
-    });
-
-    router.push(`/result?id=${res.data.generationId}`);
-  };
+  if (!photo || !wig) {
+    notFound();
+  }
 
   return (
-    <div className="p-4">
-      <h1 className="text-lg mb-4">Confirm your selection</h1>
+    <main className="mx-auto max-w-5xl p-4 md:p-8">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold">Confirm your selection</h1>
+        <p className="text-sm text-muted-foreground">
+          Review your uploaded photo and selected wig before generating the
+          try-on.
+        </p>
+      </div>
 
-      <p>Photo ID: {photoId}</p>
-      <p>Wig ID: {wigId}</p>
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Your photo</h2>
+          <div className="overflow-hidden rounded-xl border bg-muted">
+            <Image
+              src={photo.imageUrl}
+              alt="Uploaded selfie"
+              width={1200}
+              height={1200}
+              className="h-auto w-full object-cover"
+              priority
+            />
+          </div>
+        </section>
 
-      <button
-        onClick={handleGenerate}
-        className="mt-4 bg-black text-white px-4 py-2 rounded"
-        disabled={loading}
-      >
-        {loading ? 'Generating...' : 'Generate'}
-      </button>
-    </div>
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Selected wig</h2>
+          <div className="overflow-hidden rounded-xl border bg-muted">
+            <Image
+              src={wig.imageUrl}
+              alt={wig.name}
+              width={1200}
+              height={1200}
+              className="h-auto w-full object-cover"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-medium">{wig.name}</p>
+            {wig.description ? (
+              <p className="text-sm text-muted-foreground">{wig.description}</p>
+            ) : null}
+          </div>
+        </section>
+      </div>
+
+      <div className="mt-8 flex items-center justify-between gap-4 rounded-xl border p-4">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">Ready to generate</p>
+          <p className="text-sm text-muted-foreground">Photo: {photoId}</p>
+          <p className="text-sm text-muted-foreground">Wig: {wigId}</p>
+        </div>
+
+        <GenerateButton photoId={photoId} wigId={wigId} />
+      </div>
+    </main>
   );
 }
