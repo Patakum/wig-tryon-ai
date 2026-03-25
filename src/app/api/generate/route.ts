@@ -1,5 +1,7 @@
 import { prisma } from '@/src/lib/prisma';
+import { getServerSession } from 'next-auth';
 import Replicate from 'replicate';
+import { authOptions } from '@/src/lib/auth';
 
 function extractResultUrl(output: unknown): string | null {
   const first = Array.isArray(output) ? output[0] : output;
@@ -42,6 +44,17 @@ function extractResultUrl(output: unknown): string | null {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+
+    let userId: string | null = null;
+    if (session?.user?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      });
+      userId = user?.id ?? null;
+    }
+
     const token = process.env.REPLICATE_API_TOKEN;
     const model = process.env.REPLICATE_MODEL;
 
@@ -62,10 +75,14 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Invalid data' }, { status: 400 });
     }
 
+    if (photo.userId && photo.userId !== userId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Create generation entry
     const generation = await prisma.generation.create({
       data: {
-        userId: photo.userId,
+        userId: photo.userId ?? userId,
         photoId,
         wigId,
         status: 'pending',

@@ -1,5 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/src/lib/auth';
 import { prisma } from '@/src/lib/prisma';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
@@ -12,6 +14,11 @@ import {
 
 async function createWig(formData: FormData) {
   'use server';
+
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    redirect('/catalog');
+  }
 
   const name = formData.get('name')?.toString().trim();
   const imageUrl = formData.get('imageUrl')?.toString().trim();
