@@ -5,6 +5,18 @@ import { authOptions } from '@/src/lib/auth';
 import { prisma } from '@/src/lib/prisma';
 
 export async function POST(req: NextRequest) {
+  if (
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  ) {
+    console.error('Missing Cloudinary environment variables');
+    return Response.json(
+      { error: 'Server misconfiguration: Cloudinary credentials not set' },
+      { status: 500 },
+    );
+  }
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -45,7 +57,7 @@ export async function POST(req: NextRequest) {
       imageUrl: photo.imageUrl,
     });
   } catch (error) {
-    console.error(error);
+    console.error('Upload error:', JSON.stringify(error));
     return Response.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
