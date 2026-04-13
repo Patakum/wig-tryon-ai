@@ -3,16 +3,20 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/src/lib/auth';
 import { prisma } from '@/src/lib/prisma';
-import { Input } from '@/src/components/ui/input';
-import { Button } from '@/src/components/ui/button';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from '@/src/components/ui/card';
+import { WigFormClient } from './WigFormClient';
 
-async function createWig(formData: FormData) {
+async function createWig(
+  name: string,
+  imageUrl: string,
+  description: string | null,
+  price: number | null,
+) {
   'use server';
 
   const session = await getServerSession(authOptions);
@@ -20,33 +24,24 @@ async function createWig(formData: FormData) {
     redirect('/catalog');
   }
 
-  const name = formData.get('name')?.toString().trim();
-  const imageUrl = formData.get('imageUrl')?.toString().trim();
-  const description = formData.get('description')?.toString().trim();
-  const priceValue = formData.get('price')?.toString().trim();
-
   if (!name || !imageUrl) {
-    redirect('/admin/wigs/new?error=missing-fields');
+    throw new Error('missing-fields');
   }
 
-  const price = priceValue ? Number(priceValue) : null;
-
-  if (priceValue && Number.isNaN(price)) {
-    redirect('/admin/wigs/new?error=invalid-price');
+  if (price !== null && Number.isNaN(price)) {
+    throw new Error('invalid-price');
   }
 
   await prisma.wig.create({
     data: {
       name,
       imageUrl,
-      description: description || null,
+      description,
       price,
     },
   });
 
   revalidatePath('/catalog');
-  revalidatePath('/admin/wigs/new');
-  redirect('/admin/wigs/new?success=1');
 }
 
 export default async function NewWigPage({
@@ -64,59 +59,11 @@ export default async function NewWigPage({
         </CardHeader>
 
         <CardContent>
-          <form action={createWig} className="space-y-3">
-            <div className="space-y-1">
-              <label htmlFor="name" className="text-sm font-medium">
-                Name
-              </label>
-              <Input id="name" name="name" required />
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="imageUrl" className="text-sm font-medium">
-                Image URL
-              </label>
-              <Input id="imageUrl" name="imageUrl" required />
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="description" className="text-sm font-medium">
-                Description
-              </label>
-              <Input id="description" name="description" />
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="price" className="text-sm font-medium">
-                Price (optional)
-              </label>
-              <Input
-                id="price"
-                name="price"
-                type="number"
-                step="0.01"
-                min="0"
-              />
-            </div>
-
-            <Button type="submit">Add Wig</Button>
-          </form>
-
-          {params.success === '1' && (
-            <p className="mt-3 text-sm text-green-600">
-              Wig added successfully.
-            </p>
-          )}
-          {params.error === 'missing-fields' && (
-            <p className="mt-3 text-sm text-red-600">
-              Name and image URL are required.
-            </p>
-          )}
-          {params.error === 'invalid-price' && (
-            <p className="mt-3 text-sm text-red-600">
-              Price must be a valid number.
-            </p>
-          )}
+          <WigFormClient
+            onCreateWig={createWig}
+            successMessage={params.success === '1'}
+            errorType={params.error}
+          />
         </CardContent>
       </Card>
     </main>
