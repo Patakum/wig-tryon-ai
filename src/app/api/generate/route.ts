@@ -1,142 +1,137 @@
 import { prisma } from '@/src/lib/prisma';
-import { getServerSession } from 'next-auth';
-import Replicate from 'replicate';
-import { authOptions } from '@/src/lib/auth';
-
-function extractResultUrl(output: unknown): string | null {
-  const first = Array.isArray(output) ? output[0] : output;
-
-  if (typeof first === 'string') {
-    return first;
-  }
-
-  if (first instanceof URL) {
-    return first.toString();
-  }
-
-  if (first && typeof first === 'object') {
-    const record = first as Record<string, unknown>;
-
-    if (typeof record.url === 'string') {
-      return record.url;
-    }
-
-    if (typeof record.url === 'function') {
-      const value = record.url();
-      if (typeof value === 'string') {
-        return value;
-      }
-      if (value instanceof URL) {
-        return value.toString();
-      }
-    }
-
-    if (typeof record.toString === 'function') {
-      const value = record.toString();
-      if (typeof value === 'string' && value !== '[object Object]') {
-        return value;
-      }
-    }
-  }
-
-  return null;
-}
+import cloudinary from '@/src/lib/cloudinary';
+import OpenAI, { toFile } from 'openai';
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    // const session = await getServerSession(authOptions);
 
-    let userId: string | null = null;
-    if (session?.user?.email) {
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true },
-      });
-      userId = user?.id ?? null;
+    // let userId: string | null = null;
+    // if (session?.user?.email) {
+    //   const user = await prisma.user.findUnique({
+    //     where: { email: session.user.email },
+    //     select: { id: true },
+    //   });
+    //   userId = user?.id ?? null;
+    // }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return Response.json(
+        { error: 'OpenAI API key not configured. Set OPENAI_API_KEY.' },
+        { status: 500 },
+      );
     }
 
-    const token = process.env.REPLICATE_API_TOKEN;
-    const model = process.env.REPLICATE_MODEL;
-
-    const replicate = new Replicate({ auth: token });
+    const openai = new OpenAI({ apiKey });
 
     const { photoId, wigId } = await req.json();
 
     // Get data from DB
-    const photo = await prisma.photo.findUnique({
-      where: { id: photoId },
-    });
-
-    const wig = await prisma.wig.findUnique({
-      where: { id: wigId },
-    });
+    const [photo, wig] = await Promise.all([
+      prisma.photo.findUnique({ where: { id: photoId } }),
+      prisma.wig.findUnique({ where: { id: wigId } }),
+    ]);
 
     if (!photo || !wig) {
       return Response.json({ error: 'Invalid data' }, { status: 400 });
     }
 
-    if (photo.userId && photo.userId !== userId) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    // if (photo.userId
+    //   && photo.userId !== userId
+    // ) {
+    //   return Response.json({ error: 'Forbidden' }, { status: 403 });
+    // }
 
     // Create generation entry
     const generation = await prisma.generation.create({
       data: {
-        userId: photo.userId ?? userId,
+        userId: photo.userId,
         photoId,
         wigId,
         status: 'pending',
       },
     });
 
-    // Call Replicate — zsxkib/instant-id takes face_image + style_image + prompt
-    const output = await replicate.run('google/imagen-4', {
-      input: {
-        prompt: `realistic portrait of a woman wearing a ${wig.name}, studio lighting, high quality`,
-      },
-    });
+    // Fetch image data from Cloudinary URLs
+    const [selfieResponse, wigResponse] = await Promise.all([
+      fetch(photo.imageUrl),
+      fetch(wig.imageUrl),
+    ]);
 
-    // Save result
-    const resultUrl = extractResultUrl(output);
-
-    if (!resultUrl) {
+    if (!selfieResponse.ok || !wigResponse.ok) {
       await prisma.generation.update({
         where: { id: generation.id },
-        data: {
-          status: 'failed',
-        },
+        data: { status: 'failed' },
       });
-
       return Response.json(
-        {
-          error:
-            'Replicate returned an unsupported output format. Could not extract image URL.',
-        },
+        { error: 'Failed to fetch images for generation.' },
         { status: 500 },
       );
     }
 
+    const [selfieBuffer, wigBuffer] = await Promise.all([
+      selfieResponse.arrayBuffer(),
+      wigResponse.arrayBuffer(),
+    ]);
+
+    const [selfieFile, wigFile] = await Promise.all([
+      toFile(Buffer.from(selfieBuffer), 'selfie.png', { type: 'image/png' }),
+      toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
+    ]);
+
+    const prompt = `Replace the hairstyle of the person in the first image with the hairstyle from the second image. Keep the same face, identity, and facial features. Do not change the person. Make the result photorealistic with natural lighting. Match the hairstyle exactly in shape and color.`;
+
+    // Call OpenAI image edit — selfie as first image, wig reference as second
+    const response = await openai.images.edit({
+      model: 'gpt-image-1',
+      image: [selfieFile, wigFile],
+      prompt,
+      size: '1024x1024',
+    });
+
+    const base64 = response.data?.[0]?.b64_json;
+
+    if (!base64) {
+      await prisma.generation.update({
+        where: { id: generation.id },
+        data: { status: 'failed' },
+      });
+      return Response.json(
+        { error: 'OpenAI returned no image data.' },
+        { status: 500 },
+      );
+    }
+
+    // Upload result to Cloudinary
+    const uploadResult = await cloudinary.uploader.upload(
+      `data:image/png;base64,${base64}`,
+      { folder: 'generations' },
+    );
+
     await prisma.generation.update({
       where: { id: generation.id },
       data: {
-        resultImageUrl: resultUrl,
+        resultImageUrl: uploadResult.secure_url,
         status: 'completed',
       },
     });
 
-    return Response.json({
-      generationId: generation.id,
-    });
+    return Response.json({ generationId: generation.id });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
 
-    if (message.includes('status 404')) {
+    if (
+      message.toLowerCase().includes('insufficient_quota') ||
+      message.toLowerCase().includes('billing')
+    ) {
       return Response.json(
         {
           error:
-            'Replicate model not found. Check REPLICATE_MODEL (owner/model-name) and that the model is available in your Replicate account.',
+            'OpenAI billing error: insufficient quota. Add credits at https://platform.openai.com/account/billing and retry.',
         },
-        { status: 400 },
+        { status: 402 },
       );
     }
 
