@@ -62,7 +62,8 @@ export default function UploadImage({
         } catch (error) {
           if (axios.isAxiosError(error)) {
             setErrorMessage(
-              error.response?.data?.error ?? 'Upload failed. Please try again.',
+              error.response?.data?.error?.message ??
+                'Upload failed. Please try again.',
             );
             return;
           }
@@ -109,6 +110,7 @@ export default function UploadImage({
             className="mt-4 rounded-xl"
             width={200}
             height={200}
+            unoptimized
           />
           <Button
             type="button"

@@ -1,55 +1,18 @@
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import cloudinary from '@/src/lib/cloudinary';
-import { authOptions } from '@/src/lib/auth';
+import { requireAdmin } from '@/src/lib/api/auth';
+import { normalizeErrorToResponse } from '@/src/lib/api/errors';
+import { ok } from '@/src/lib/api/http';
+import { parseJsonBody, uploadBase64Schema } from '@/src/lib/api/parse';
+import { uploadWigReferenceImage } from '@/src/services/wig';
 
 export async function POST(req: NextRequest) {
-  if (
-    !process.env.CLOUDINARY_CLOUD_NAME ||
-    !process.env.CLOUDINARY_API_KEY ||
-    !process.env.CLOUDINARY_API_SECRET
-  ) {
-    console.error('Missing Cloudinary environment variables');
-    return Response.json(
-      { error: 'Server misconfiguration: Cloudinary credentials not set' },
-      { status: 500 },
-    );
-  }
-
   try {
-    const session = await getServerSession(authOptions);
+    await requireAdmin();
+    const { file } = await parseJsonBody(req, uploadBase64Schema);
+    const imageUrl = await uploadWigReferenceImage(file);
 
-    if (session?.user?.role !== 'admin') {
-      return Response.json(
-        { error: 'Unauthorized: admin access required' },
-        { status: 403 },
-      );
-    }
-
-    const body = await req.json();
-
-    const { file } = body;
-
-    if (!file) {
-      return Response.json({ error: 'No file provided' }, { status: 400 });
-    }
-
-    if (!file.startsWith('data:image')) {
-      return Response.json(
-        { error: 'Invalid file: must be an image' },
-        { status: 400 },
-      );
-    }
-
-    const uploadResponse = await cloudinary.uploader.upload(file, {
-      folder: 'wig-ai/wigs',
-    });
-
-    return Response.json({
-      imageUrl: uploadResponse.secure_url,
-    });
+    return ok({ imageUrl });
   } catch (error) {
-    console.error('Wig upload error:', JSON.stringify(error));
-    return Response.json({ error: 'Wig upload failed' }, { status: 500 });
+    return normalizeErrorToResponse(error, 'Wig upload failed');
   }
 }

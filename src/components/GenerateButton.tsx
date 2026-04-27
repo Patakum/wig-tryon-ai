@@ -31,7 +31,7 @@ export default function GenerateButton({
       router.push(`/result?id=${res.data.generationId}`);
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error ?? 'Generation failed');
+        setError(err.response?.data?.error?.message ?? 'Generation failed');
       } else {
         setError('Generation failed');
       }

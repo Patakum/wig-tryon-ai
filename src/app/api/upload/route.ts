@@ -1,63 +1,33 @@
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import cloudinary from '@/src/lib/cloudinary';
-import { authOptions } from '@/src/lib/auth';
-import { prisma } from '@/src/lib/prisma';
+import { getOptionalUserId } from '@/src/lib/api/auth';
+import { normalizeErrorToResponse } from '@/src/lib/api/errors';
+import { ok } from '@/src/lib/api/http';
+import {
+  parseImageFormFile,
+  parseJsonBody,
+  uploadBase64Schema,
+} from '@/src/lib/api/parse';
+import {
+  uploadPhotoFromDataUri,
+  uploadPhotoFromFile,
+} from '@/src/services/photo';
 
 export async function POST(req: NextRequest) {
-  if (
-    !process.env.CLOUDINARY_CLOUD_NAME ||
-    !process.env.CLOUDINARY_API_KEY ||
-    !process.env.CLOUDINARY_API_SECRET
-  ) {
-    console.error('Missing Cloudinary environment variables');
-    return Response.json(
-      { error: 'Server misconfiguration: Cloudinary credentials not set' },
-      { status: 500 },
-    );
-  }
-
   try {
-    const session = await getServerSession(authOptions);
+    const userId = await getOptionalUserId();
 
-    let userId: string | null = null;
-    if (session?.user?.email) {
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true },
-      });
-      userId = user?.id ?? null;
+    const contentType = req.headers.get('content-type') ?? '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const file = await parseImageFormFile(req);
+      const uploaded = await uploadPhotoFromFile(file, userId);
+      return ok(uploaded, 201);
     }
 
-    const body = await req.json();
-
-    const { file } = body;
-
-    if (!file) {
-      return Response.json({ error: 'No file provided' }, { status: 400 });
-    }
-
-    if (!file.startsWith('data:image')) {
-      return Response.json({ error: 'Invalid file' }, { status: 400 });
-    }
-
-    const uploadResponse = await cloudinary.uploader.upload(file, {
-      folder: 'wig-ai',
-    });
-
-    const photo = await prisma.photo.create({
-      data: {
-        userId,
-        imageUrl: uploadResponse.secure_url,
-      },
-    });
-
-    return Response.json({
-      photoId: photo.id,
-      imageUrl: photo.imageUrl,
-    });
+    const { file } = await parseJsonBody(req, uploadBase64Schema);
+    const uploaded = await uploadPhotoFromDataUri(file, userId);
+    return ok(uploaded, 201);
   } catch (error) {
-    console.error('Upload error:', JSON.stringify(error));
-    return Response.json({ error: 'Upload failed' }, { status: 500 });
+    return normalizeErrorToResponse(error, 'Upload failed');
   }
 }

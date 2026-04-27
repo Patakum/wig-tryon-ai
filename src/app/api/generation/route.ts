@@ -1,37 +1,17 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/src/lib/auth';
-import { prisma } from '@/src/lib/prisma';
+import { getOptionalUserId } from '@/src/lib/api/auth';
+import { normalizeErrorToResponse } from '@/src/lib/api/errors';
+import { ok } from '@/src/lib/api/http';
+import { getRequiredSearchParam } from '@/src/lib/api/parse';
+import { getGenerationForViewer } from '@/src/services/generation';
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
+  try {
+    const userId = await getOptionalUserId();
+    const id = getRequiredSearchParam(req, 'id', 'Missing generation id');
+    const generation = await getGenerationForViewer(id, userId);
 
-  let userId: string | null = null;
-  if (session?.user?.email) {
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
-    userId = user?.id ?? null;
+    return ok(generation);
+  } catch (error) {
+    return normalizeErrorToResponse(error, 'Failed to fetch generation');
   }
-
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
-
-  if (!id) {
-    return Response.json({ error: 'Missing generation id' }, { status: 400 });
-  }
-
-  const generation = await prisma.generation.findUnique({
-    where: { id },
-  });
-
-  if (!generation) {
-    return Response.json({ error: 'Generation not found' }, { status: 404 });
-  }
-
-  if (generation.userId && generation.userId !== userId) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  return Response.json(generation);
 }

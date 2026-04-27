@@ -55,6 +55,7 @@ export default async function PreviewPage({ searchParams }: PreviewPageProps) {
               height={1200}
               className="h-auto w-full object-cover"
               priority
+              unoptimized
             />
           </div>
         </section>
@@ -68,6 +69,7 @@ export default async function PreviewPage({ searchParams }: PreviewPageProps) {
               width={1200}
               height={1200}
               className="h-auto w-full object-cover"
+              unoptimized
             />
           </div>
           <div className="space-y-1">

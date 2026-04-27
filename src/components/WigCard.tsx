@@ -13,10 +13,11 @@ export default function WigCard({
       className="border rounded-xl p-2 cursor-pointer hover:shadow-md"
       onClick={() => onSelect(wig.id)}
     >
-      <img
+      <Image
         src={wig.imageUrl}
         alt={wig.name}
         className="rounded-lg w-full h-48 object-cover"
+        unoptimized
       />
       <p className="mt-2 text-center">{wig.name}</p>
     </div>

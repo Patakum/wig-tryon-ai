@@ -1,6 +1,8 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/src/lib/auth';
-import { prisma } from '@/src/lib/prisma';
+import { getOptionalUserId } from '@/src/lib/api/auth';
+import { normalizeErrorToResponse } from '@/src/lib/api/errors';
+import { ok } from '@/src/lib/api/http';
+import { requireRouteParam } from '@/src/lib/api/parse';
+import { getPhotoForViewer } from '@/src/services/photo';
 
 type RouteContext = {
   params: Promise<{
@@ -9,34 +11,14 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const session = await getServerSession(authOptions);
+  try {
+    const userId = await getOptionalUserId();
+    const { photoId } = await context.params;
+    const id = requireRouteParam(photoId, 'No photoId provided');
 
-  let userId: string | null = null;
-  if (session?.user?.email) {
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
-    userId = user?.id ?? null;
+    const photo = await getPhotoForViewer(id, userId);
+    return ok(photo);
+  } catch (error) {
+    return normalizeErrorToResponse(error, 'Failed to fetch photo');
   }
-
-  const { photoId } = await context.params;
-
-  if (!photoId) {
-    return Response.json({ error: 'No photoId provided' }, { status: 400 });
-  }
-
-  const photo = await prisma.photo.findUnique({
-    where: { id: photoId },
-  });
-
-  if (!photo) {
-    return Response.json({ error: 'Photo not found' }, { status: 404 });
-  }
-
-  if (photo.userId && photo.userId !== userId) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  return Response.json(photo);
 }
