@@ -8,6 +8,35 @@ export type UploadResult = {
 };
 
 /**
+ * Upload a raw buffer to Cloudinary (more efficient than base64 — avoids 33% size overhead).
+ */
+export async function uploadImageFromBuffer(
+  buffer: Buffer,
+  folder: CloudinaryFolder,
+): Promise<UploadResult> {
+  assertCloudinaryConfig();
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder },
+      (error, result) => {
+        if (error || !result) {
+          return reject(error ?? new Error('Cloudinary upload failed'));
+        }
+        resolve({ publicId: result.public_id, secureUrl: result.secure_url });
+      },
+    );
+    stream.end(buffer);
+  });
+}
+
+/**
+ * Upload a wig reference image buffer to the wig-ai/wigs folder.
+ */
+export function uploadWigFromBuffer(buffer: Buffer): Promise<UploadResult> {
+  return uploadImageFromBuffer(buffer, 'wig-ai/wigs');
+}
+
+/**
  * Upload a base64 data URI or remote URL to Cloudinary.
  */
 export async function uploadImage(

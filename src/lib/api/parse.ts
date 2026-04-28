@@ -54,8 +54,31 @@ export function requireRouteParam(
   return value;
 }
 
-export async function parseImageFormFile(req: Request): Promise<File> {
-  const formData = await req.formData();
+export const wigFormSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required'),
+  description: z.string().trim().optional(),
+  price: z.preprocess(
+    (val) => (val === '' || val == null ? null : Number(val)),
+    z.number().positive('Price must be positive').nullable(),
+  ),
+});
+
+export type WigFormData = z.infer<typeof wigFormSchema>;
+
+export function parseWigFormData(formData: FormData): WigFormData {
+  const raw = {
+    name: formData.get('name'),
+    description: formData.get('description') ?? undefined,
+    price: formData.get('price'),
+  };
+  const result = wigFormSchema.safeParse(raw);
+  if (!result.success) {
+    throwApiError(400, 'BAD_REQUEST', result.error.issues[0].message);
+  }
+  return result.data;
+}
+
+export function parseImageFormFile(formData: FormData): File {
   const file = formData.get('file');
 
   if (!(file instanceof File)) {

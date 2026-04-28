@@ -1,4 +1,4 @@
-import UploadClientImage from '@/src/components/UploadClientImage';
+import SelfieUploader from '@/src/components/uploaders/SelfieUploader';
 import { Suspense } from 'react';
 
 type UploadPageProps = {
@@ -22,7 +22,7 @@ export default async function UploadPage({ searchParams }: UploadPageProps) {
       </div>
 
       <Suspense fallback={<div>Loading uploader...</div>}>
-        <UploadClientImage wigId={wigId} />
+        <SelfieUploader wigId={wigId} />
       </Suspense>
     </main>
   );

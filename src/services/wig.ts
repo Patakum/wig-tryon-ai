@@ -1,10 +1,28 @@
 import { prisma } from '@/src/lib/prisma';
-import { uploadWig } from '@/src/lib/cloudinary-utils';
+import { uploadWigFromBuffer } from '@/src/lib/cloudinary-utils';
 import { throwApiError } from '@/src/lib/api/errors';
 
-export async function uploadWigReferenceImage(file: string): Promise<string> {
-  const { secureUrl } = await uploadWig(file);
+export async function uploadWigReferenceImage(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const { secureUrl } = await uploadWigFromBuffer(buffer);
   return secureUrl;
+}
+
+export async function createWig(data: {
+  name: string;
+  imageUrl: string;
+  description: string | null;
+  price: number | null;
+}) {
+  return prisma.wig.create({
+    data: {
+      name: data.name.trim(),
+      imageUrl: data.imageUrl,
+      description: data.description,
+      price: data.price,
+    },
+  });
 }
 
 export async function getWigOrThrow(wigId: string) {

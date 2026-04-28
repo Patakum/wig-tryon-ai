@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get('content-type') ?? '';
 
     if (contentType.includes('multipart/form-data')) {
-      const file = await parseImageFormFile(req);
+      const formData = await req.formData();
+      const file = parseImageFormFile(formData);
       const uploaded = await uploadPhotoFromFile(file, userId);
       return ok(uploaded, 201);
     }

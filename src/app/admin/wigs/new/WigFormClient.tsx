@@ -1,96 +1,74 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  startTransition,
+} from 'react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
-import UploadImage from '@/src/components/UploadImage';
+import UploadRulesDialog from '@/src/components/uploaders/UploadRulesDialog';
+import WigUploader from '@/src/components/uploaders/WigUploader';
+import { uploadWigAction } from '@/src/actions/actions';
+import { initialWigState } from '@/src/actions/types';
 
-type WigFormClientProps = {
-  onCreateWig: (
-    name: string,
-    imageUrl: string,
-    description: string | null,
-    price: number | null,
-  ) => Promise<void>;
-  successMessage?: boolean;
-  errorType?: string;
-};
+export function WigFormClient() {
+  const [state, formAction, isPending] = useActionState(
+    uploadWigAction,
+    initialWigState,
+  );
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
-export function WigFormClient({
-  onCreateWig,
-  successMessage,
-  errorType,
-}: WigFormClientProps) {
-  const [name, setName] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    }
+  }, [state.success]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
-
-    if (!name.trim() || !imageUrl) {
-      setError('Name and image are required.');
-      return;
-    }
-
-    const priceNum = price ? Number(price) : null;
-    if (price && Number.isNaN(priceNum)) {
-      setError('Price must be a valid number.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      await onCreateWig(name, imageUrl, description || null, priceNum);
-
-      router.push('/admin/wigs/new?success=1');
-      setName('');
-      setImageUrl(null);
-      setDescription('');
-      setPrice('');
-    } catch (err) {
-      const errorMsg =
-        err instanceof Error ? err.message : 'Failed to create wig';
-      if (errorMsg === 'missing-fields') {
-        setError('Name and image are required.');
-      } else if (errorMsg === 'invalid-price') {
-        setError('Price must be a valid number.');
-      } else {
-        setError(errorMsg);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (!selectedFile) return;
+    const formData = new FormData(e.currentTarget);
+    formData.append('file', selectedFile);
+    startTransition(() => formAction(formData));
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1">
         <label htmlFor="name" className="text-sm font-medium">
           Name *
         </label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Wig name"
-          required
-        />
+        <Input id="name" name="name" placeholder="Wig name" required />
       </div>
 
       <div className="space-y-1">
         <label className="text-sm font-medium">Wig Image *</label>
-        <UploadImage
-          endpoint="/api/upload-wig"
-          onUpload={setImageUrl}
-          placeholder="Drag & drop wig image or click to upload"
-          label="Upload Wig Image"
+        <UploadRulesDialog
+          title="Wig image upload rules"
+          description="Use a clean wig image so the catalog and try-on results stay accurate."
+          rules={[
+            'Upload a single wig only, with no person in the image.',
+            'Use a front-facing angle on a plain or transparent background.',
+            'Avoid collages, screenshots, text overlays, or watermarks.',
+            'Use a sharp, well-lit image with visible hairline and ends.',
+            'Preferred minimum resolution: 640px on the shortest side.',
+          ]}
+        />
+        <WigUploader
+          previewUrl={previewUrl}
+          onFileSelect={(file) => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            setSelectedFile(file);
+            setPreviewUrl(file ? URL.createObjectURL(file) : null);
+          }}
         />
       </div>
 
@@ -100,8 +78,7 @@ export function WigFormClient({
         </label>
         <Input
           id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          name="description"
           placeholder="Wig description (optional)"
         />
       </div>
@@ -112,8 +89,7 @@ export function WigFormClient({
         </label>
         <Input
           id="price"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
+          name="price"
           type="number"
           step="0.01"
           min="0"
@@ -121,20 +97,14 @@ export function WigFormClient({
         />
       </div>
 
-      <Button type="submit" disabled={isSubmitting || !imageUrl}>
-        {isSubmitting ? 'Adding...' : 'Add Wig'}
+      <Button type="submit" disabled={isPending || !selectedFile}>
+        {isPending ? 'Adding...' : 'Add Wig'}
       </Button>
 
-      {successMessage && (
+      {state.success && (
         <p className="text-sm text-green-600">Wig added successfully.</p>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {errorType === 'missing-fields' && (
-        <p className="text-sm text-red-600">Name and image are required.</p>
-      )}
-      {errorType === 'invalid-price' && (
-        <p className="text-sm text-red-600">Price must be a valid number.</p>
-      )}
+      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
     </form>
   );
 }
