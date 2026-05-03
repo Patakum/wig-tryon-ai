@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import BaseImageUploader from '@/src/components/uploaders/BaseImageUploader';
 import UploadedImagePreview from '@/src/components/uploaders/UploadedImagePreview';
 import UploadRulesDialog from '@/src/components/uploaders/UploadRulesDialog';
+import FaceCapture from './FaceCapture';
+import { Button } from '@/src/components/ui/button';
 
 type SelfieUploaderProps = {
   previewUrl: string | null;
@@ -62,33 +65,59 @@ async function optimizeImageForUpload(file: File): Promise<File> {
   }
 }
 
+type InputMode = 'upload' | 'camera';
+
 export default function SelfieUploader({
   previewUrl,
   onFileReady,
   onRemove,
 }: SelfieUploaderProps) {
+  const [mode, setMode] = useState<InputMode>('upload');
+
   return (
     <div className="space-y-4">
       {!previewUrl && (
-        <UploadRulesDialog
-          title="איך להעלות סלפי נכון"
-          description="תמונה טובה תשפר משמעותית את איכות התוצאה של הדמיית הפאה."
-          rules={[
-            'פנים קדמיות וברורות, אדם אחד בלבד בתמונה.',
-            'תאורה טובה ואחידה, בלי צללים חזקים על הפנים.',
-            'ללא מסכה, משקפי שמש או הסתרה של קו השיער.',
-            'רקע נקי ככל האפשר וללא מסיחים מרכזיים.',
-            'רזולוציה מומלצת: לפחות 640px בצד הקצר.',
-          ]}
-        />
+        <div className="flex gap-2">
+          <Button
+            variant={mode === 'upload' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setMode('upload')}
+          >
+            העלה תמונה
+          </Button>
+          <Button
+            variant={mode === 'camera' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setMode('camera')}
+          >
+            צלם סלפי
+          </Button>
+        </div>
       )}
 
-      {/* Image area */}
-      <BaseImageUploader<File>
-        preprocessFile={optimizeImageForUpload}
-        onSuccess={onFileReady}
-        showDropzone={!previewUrl}
-      />
+      {!previewUrl && mode === 'upload' && (
+        <>
+          <UploadRulesDialog
+            title="איך להעלות סלפי נכון"
+            description="תמונה טובה תשפר משמעותית את איכות התוצאה של הדמיית הפאה."
+            rules={[
+              'פנים קדמיות וברורות, אדם אחד בלבד בתמונה.',
+              'תאורה טובה ואחידה, בלי צללים חזקים על הפנים.',
+              'ללא מסכה, משקפי שמש או הסתרה של קו השיער.',
+              'רקע נקי ככל האפשר וללא מסיחים מרכזיים.',
+              'רזולוציה מומלצת: לפחות 640px בצד הקצר.',
+            ]}
+          />
+          <BaseImageUploader<File>
+            preprocessFile={optimizeImageForUpload}
+            onSuccess={onFileReady}
+          />
+        </>
+      )}
+
+      {!previewUrl && mode === 'camera' && (
+        <FaceCapture onCapture={onFileReady} />
+      )}
 
       {previewUrl && (
         <div>
