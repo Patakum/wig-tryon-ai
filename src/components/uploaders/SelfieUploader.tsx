@@ -1,15 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import axios from 'axios';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/src/components/ui/button';
 import BaseImageUploader from '@/src/components/uploaders/BaseImageUploader';
 import UploadedImagePreview from '@/src/components/uploaders/UploadedImagePreview';
 import UploadRulesDialog from '@/src/components/uploaders/UploadRulesDialog';
+import FaceCapture from './FaceCapture';
+import { Button } from '@/src/components/ui/button';
 
 type SelfieUploaderProps = {
-  wigId: string;
+  previewUrl: string | null;
+  onFileReady: (file: File) => void;
+  onRemove: () => void;
 };
 
 async function optimizeImageForUpload(file: File): Promise<File> {
@@ -21,7 +22,7 @@ async function optimizeImageForUpload(file: File): Promise<File> {
 
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
+      const el = document.createElement('img');
       el.onload = () => resolve(el);
       el.onerror = () => reject(new Error('Failed to read image'));
       el.src = objectUrl;
@@ -64,85 +65,73 @@ async function optimizeImageForUpload(file: File): Promise<File> {
   }
 }
 
-export default function SelfieUploader({ wigId }: SelfieUploaderProps) {
-  const router = useRouter();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+type InputMode = 'upload' | 'camera';
 
-  const handleFileReady = (file: File) => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-    setSubmitError(null);
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedFile) return;
-    setIsSubmitting(true);
-    setSubmitError(null);
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      const res = await axios.post('/api/upload', formData);
-      router.push(`/preview?photoId=${res.data.photoId}&wigId=${wigId}`);
-    } catch {
-      setSubmitError('העלאה נכשלה. אנא נסה שנית.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleRemove = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setSelectedFile(null);
-    setPreviewUrl(null);
-  };
+export default function SelfieUploader({
+  previewUrl,
+  onFileReady,
+  onRemove,
+}: SelfieUploaderProps) {
+  const [mode, setMode] = useState<InputMode>('upload');
 
   return (
-    <div>
-      <div className="mb-4">
-        <UploadRulesDialog
-          title="איך להעלות סלפי נכון"
-          description="תמונה טובה תשפר משמעותית את איכות התוצאה של הדמיית הפאה."
-          rules={[
-            'פנים קדמיות וברורות, אדם אחד בלבד בתמונה.',
-            'תאורה טובה ואחידה, בלי צללים חזקים על הפנים.',
-            'ללא מסכה, משקפי שמש או הסתרה של קו השיער.',
-            'רקע נקי ככל האפשר וללא מסיחים מרכזיים.',
-            'רזולוציה מומלצת: לפחות 640px בצד הקצר.',
-          ]}
-        />
-      </div>
+    <div className="space-y-4">
+      {!previewUrl && (
+        <div className="flex gap-2">
+          <Button
+            variant={mode === 'upload' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setMode('upload')}
+          >
+            העלה תמונה
+          </Button>
+          <Button
+            variant={mode === 'camera' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setMode('camera')}
+          >
+            צלם סלפי
+          </Button>
+        </div>
+      )}
 
-      <BaseImageUploader<File>
-        preprocessFile={optimizeImageForUpload}
-        onSuccess={handleFileReady}
-        showDropzone={!previewUrl}
-      />
+      {!previewUrl && mode === 'upload' && (
+        <>
+          <UploadRulesDialog
+            title="איך להעלות סלפי נכון"
+            description="תמונה טובה תשפר משמעותית את איכות התוצאה של הדמיית הפאה."
+            rules={[
+              'פנים קדמיות וברורות, אדם אחד בלבד בתמונה.',
+              'תאורה טובה ואחידה, בלי צללים חזקים על הפנים.',
+              'ללא מסכה, משקפי שמש או הסתרה של קו השיער.',
+              'רקע נקי ככל האפשר וללא מסיחים מרכזיים.',
+              'רזולוציה מומלצת: לפחות 640px בצד הקצר.',
+            ]}
+          />
+          <BaseImageUploader<File>
+            preprocessFile={optimizeImageForUpload}
+            onSuccess={onFileReady}
+          />
+        </>
+      )}
 
-      {previewUrl ? (
-        <div className="mt-4">
+      {!previewUrl && mode === 'camera' && (
+        <FaceCapture onCapture={onFileReady} />
+      )}
+
+      {previewUrl && (
+        <div>
+          <p className="mb-2 text-sm font-medium text-muted-foreground">
+            תמונתך
+          </p>
           <UploadedImagePreview
             imageUrl={previewUrl}
+            alt="Selfie preview"
             showRemoveButton
-            onRemove={handleRemove}
+            onRemove={onRemove}
           />
-
-          <Button
-            className="mt-4"
-            disabled={isSubmitting}
-            onClick={handleSubmit}
-          >
-            {isSubmitting ? 'מעלה...' : 'המשך לתוצאה'}
-          </Button>
-
-          {submitError ? (
-            <p className="mt-2 text-sm text-red-600">{submitError}</p>
-          ) : null}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

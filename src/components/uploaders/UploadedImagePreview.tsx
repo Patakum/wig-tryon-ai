@@ -1,7 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import { Button } from '@/src/components/ui/button';
+import CustomImage from '../ui/Image';
 
 type UploadedImagePreviewProps = {
   imageUrl: string;
@@ -16,22 +16,13 @@ type UploadedImagePreviewProps = {
 export default function UploadedImagePreview({
   imageUrl,
   alt = 'uploaded',
-  width = 500,
-  height = 500,
   showRemoveButton = false,
   removeButtonLabel = 'Remove',
   onRemove,
 }: UploadedImagePreviewProps) {
   return (
-    <div className="relative inline-block">
-      <Image
-        src={imageUrl}
-        alt={alt}
-        className="rounded-xl"
-        width={width}
-        height={height}
-        unoptimized
-      />
+    <div className="relative">
+      <CustomImage src={imageUrl} alt={alt} />
 
       {showRemoveButton ? (
         <Button

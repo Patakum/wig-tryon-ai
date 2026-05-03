@@ -77,7 +77,6 @@ export default function BaseImageUploader<TResult>({
       const uploadResult = await uploadRequest?.(processedFile);
 
       await onSuccess?.(uploadResult);
-    
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setErrorMessage(
@@ -105,19 +104,23 @@ export default function BaseImageUploader<TResult>({
   });
 
   return (
-    <div>
+    <>
       {showDropzone && (
-        <div {...getRootProps()} className={dropzoneClassName}>
-          <input {...getInputProps()} />
-          <p>{placeholder}</p>
+        <div>
+          <div>
+            <div {...getRootProps()} className={dropzoneClassName}>
+              <input {...getInputProps()} />
+              <p>{placeholder}</p>
+            </div>
+          </div>
+
+          {errorMessage && (
+            <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
+          )}
+
+          {isUploading && <Loader2 className="mx-auto mt-4 animate-spin" />}
         </div>
       )}
-
-      {errorMessage && (
-        <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
-      )}
-
-      {isUploading && <Loader2 className="mx-auto mt-4 animate-spin" />}
-    </div>
+    </>
   );
 }

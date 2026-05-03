@@ -114,14 +114,28 @@ export async function generateTryOn(params: {
     toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
   ]);
 
-  const prompt =
-    'Replace the hairstyle of the person in the first image with the hairstyle from the second image. Keep the same face, identity, and facial features. Do not change the person. Make the result photorealistic with natural lighting. Match the hairstyle exactly in shape and color.';
+  const prompt = `
+    Replace ONLY the hair of the person in the first image with the hairstyle from the second image.
 
+    Do not change the face, skin, lighting, or identity.
+    
+    do not smooth skin, do not change face texture, do not alter identity
+
+    Keep every facial detail exactly the same.
+
+    Only modify the hair region.
+
+    Photorealistic, seamless blending.
+  `;
   const response = await openai.images.edit({
+    // todo: consider using a custom-trained model if quality is not good enough
+   // use the new gpt image to have better performance 
     model: 'gpt-image-1',
     image: [selfieFile, wigFile],
     prompt,
-    quality: 'low',
+    // todo: test different sizes and quality settings to find the best balance of quality, speed, and cost
+    quality:'low',
+    // quality: 'auto',
     size: '1024x1024',
   });
 

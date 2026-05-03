@@ -1,58 +1,43 @@
 'use client';
 import axios from 'axios';
-import { useState } from 'react';
+import { useReducer } from 'react';
+import {
+  feedbackReducer,
+  initialFeedbackState,
+} from '@/src/components/Feedback.reducer';
 
 export default function Feedback({ id }: { id: string }) {
-  const [message, setMessage] = useState({
-    message: '',
-    sending: false,
-    success: false,
-    error: '',
-  });
+  const [state, dispatch] = useReducer(feedbackReducer, initialFeedbackState);
 
   const handleSubmit = async () => {
-    if (!message.message) return;
-    if (!message.message.trim()) return;
-    setMessage((prev) => ({
-      ...prev,
-      sending: true,
-      success: false,
-      error: '',
-    }));
+    if (!state.message.trim()) return;
+
+    dispatch({ type: 'SEND_START' });
 
     try {
       await axios.post('/api/feedback', {
         generationId: id,
-        message: message.message,
+        message: state.message,
       });
 
-      setMessage((prev) => ({ ...prev, sending: false, success: true }));
+      dispatch({ type: 'SEND_SUCCESS' });
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setMessage((prev) => ({
-          ...prev,
-          sending: false,
-          error:
-            error.response?.data?.error?.message ?? 'Failed to send feedback',
-        }));
-        return;
-      }
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error?.message ?? 'Failed to send feedback')
+        : 'Failed to send feedback';
 
-      setMessage((prev) => ({
-        ...prev,
-        sending: false,
-        error: 'Failed to send feedback',
-      }));
+      dispatch({ type: 'SEND_ERROR', payload: message });
     }
   };
+
   return (
     <div className="mt-6">
       <h2 className="text-lg mb-2">Leave feedback</h2>
 
       <textarea
-        value={message.message}
+        value={state.message}
         onChange={(e) =>
-          setMessage((prev) => ({ ...prev, message: e.target.value }))
+          dispatch({ type: 'SET_MESSAGE', payload: e.target.value })
         }
         className="w-full border rounded p-2"
         placeholder="Write your message..."
@@ -60,16 +45,14 @@ export default function Feedback({ id }: { id: string }) {
 
       <button
         onClick={handleSubmit}
-        disabled={message.sending}
+        disabled={state.sending}
         className="mt-2 bg-black text-white px-4 py-2 rounded"
       >
-        {message.sending ? 'Sending...' : 'Send feedback'}
+        {state.sending ? 'Sending...' : 'Send feedback'}
       </button>
 
-      {message.success && <p className="text-green-600 mt-2">Feedback sent!</p>}
-      {message.error ? (
-        <p className="text-red-600 mt-2">{message.error}</p>
-      ) : null}
+      {state.success && <p className="text-green-600 mt-2">Feedback sent!</p>}
+      {state.error ? <p className="text-red-600 mt-2">{state.error}</p> : null}
     </div>
   );
 }

@@ -35,16 +35,22 @@ export default function GenerateButton({
       } else {
         setError('Generation failed');
       }
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      <Button onClick={handleGenerate} disabled={loading} size="lg">
+    <div className="flex flex-col gap-2">
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <Button
+        onClick={handleGenerate}
+        disabled={loading}
+        size="lg"
+        className="w-full"
+      >
         {loading ? 'Generating...' : 'Generate'}
       </Button>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }
