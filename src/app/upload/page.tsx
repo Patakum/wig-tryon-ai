@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import SelfieUploader from '@/src/components/uploaders/SelfieUploader';
+import UploadPageClient from '@/src/app/upload/UploadPageClient';
 import { prisma } from '@/src/lib/prisma';
 
 type UploadPageProps = {
@@ -29,7 +29,7 @@ export default async function UploadPage({ searchParams }: UploadPageProps) {
       </div>
 
       <Suspense fallback={<div>Loading uploader...</div>}>
-        <SelfieUploader wigId={wigId} wigImageUrl={wig.imageUrl} />
+        <UploadPageClient wigId={wigId} wigImageUrl={wig.imageUrl} />
       </Suspense>
     </main>
   );
