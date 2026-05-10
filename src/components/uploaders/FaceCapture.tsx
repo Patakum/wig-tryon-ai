@@ -2,9 +2,33 @@
 
 import { useRef, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const MODEL_URI = '/models';
+const SCORE_THRESHOLD = 0.5;
+const DETECTION_INTERVAL_MS = 250;
+const CAMERA_READY_POLL_MS = 300;
+
+const OVAL = {
+  widthRatio: 0.28,
+  heightRatio: 0.42,
+  centerThreshold: 0.6, // normalised ellipse distance²; < 1 means inside
+} as const;
+
+const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+  facingMode: 'user',
+  width: 640,
+  height: 480,
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type FaceStatus = 'loading' | 'no-face' | 'align' | 'valid';
+
+// ─── UI copy ──────────────────────────────────────────────────────────────────
 
 const STATUS_MESSAGE: Record<FaceStatus, string> = {
   loading: 'מאתחל מצלמה...',
@@ -12,6 +36,76 @@ const STATUS_MESSAGE: Record<FaceStatus, string> = {
   align: 'קרב את הפנים למרכז המעגל',
   valid: '✓ מושלם! לחץ לצילום',
 };
+
+const STATUS_COLOR: Record<FaceStatus, string> = {
+  loading: '#94a3b8',
+  'no-face': '#ef4444',
+  align: '#ef4444',
+  valid: '#22c55e',
+};
+
+const PHOTO_RULES = [
+  'פנים גלויות וברורות',
+  'תאורה טובה (ללא צללים)',
+  'הביטו ישר למצלמה',
+  'ללא כובע או משקפי שמש',
+] as const;
+
+// ─── Canvas helpers ───────────────────────────────────────────────────────────
+
+function drawOvalOverlay(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  color: string,
+) {
+  const cx = width / 2;
+  const cy = height / 2;
+  const rx = width * OVAL.widthRatio;
+  const ry = height * OVAL.heightRatio;
+
+  // Dim the area outside the oval
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Coloured border ring
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+}
+
+function isFaceCentered(
+  box: { x: number; y: number; width: number; height: number },
+  canvas: HTMLCanvasElement,
+  video: HTMLVideoElement,
+): boolean {
+  const scaleX = canvas.width / video.videoWidth;
+  const scaleY = canvas.height / video.videoHeight;
+
+  // Mirror X to match the CSS-flipped video display
+  const faceCx = canvas.width - (box.x + box.width / 2) * scaleX;
+  const faceCy = (box.y + box.height / 2) * scaleY;
+
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const rx = canvas.width * OVAL.widthRatio;
+  const ry = canvas.height * OVAL.heightRatio;
+
+  return (
+    Math.pow((faceCx - cx) / rx, 2) + Math.pow((faceCy - cy) / ry, 2) <
+    OVAL.centerThreshold
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 type FaceCaptureProps = {
   onCapture: (file: File) => void;
@@ -34,8 +128,12 @@ export default function FaceCapture({ onCapture }: FaceCaptureProps) {
       const video = webcamRef.current?.video;
       const canvas = canvasRef.current;
 
-      if (!video || !canvas || video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
-        timeoutId = setTimeout(runDetection, 300);
+      if (
+        !video ||
+        !canvas ||
+        video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA
+      ) {
+        timeoutId = setTimeout(runDetection, CAMERA_READY_POLL_MS);
         return;
       }
 
@@ -43,13 +141,15 @@ export default function FaceCapture({ onCapture }: FaceCaptureProps) {
         if (!faceapi) {
           faceapi = await import('face-api.js');
           if (!faceapi.nets.tinyFaceDetector.isLoaded) {
-            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URI);
           }
         }
 
         const detections = await faceapi.detectAllFaces(
           video,
-          new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }),
+          new faceapi.TinyFaceDetectorOptions({
+            scoreThreshold: SCORE_THRESHOLD,
+          }),
         );
 
         if (!active) return;
@@ -59,51 +159,25 @@ export default function FaceCapture({ onCapture }: FaceCaptureProps) {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
-        const rx = canvas.width * 0.28;
-        const ry = canvas.height * 0.42;
-
-        let faceInCircle = false;
-        if (detections.length === 1) {
-          const { box } = detections[0];
-          const scaleX = canvas.width / video.videoWidth;
-          const scaleY = canvas.height / video.videoHeight;
-          // Mirror X to match the CSS-flipped video display
-          const fcx = canvas.width - (box.x + box.width / 2) * scaleX;
-          const fcy = (box.y + box.height / 2) * scaleY;
-          faceInCircle =
-            Math.pow((fcx - cx) / rx, 2) + Math.pow((fcy - cy) / ry, 2) < 0.6;
-        }
-
         const nextStatus: FaceStatus =
-          detections.length === 0 ? 'no-face' : faceInCircle ? 'valid' : 'align';
+          detections.length === 0
+            ? 'no-face'
+            : isFaceCentered(detections[0].box, canvas, video)
+              ? 'valid'
+              : 'align';
 
-        const color = nextStatus === 'valid' ? '#22c55e' : '#ef4444';
-
-        // Dim outside the oval
-        ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // Colored border on top
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 4;
-        ctx.stroke();
-
+        drawOvalOverlay(
+          ctx,
+          canvas.width,
+          canvas.height,
+          STATUS_COLOR[nextStatus],
+        );
         setStatus(nextStatus);
       } catch {
-        // fail silently, keep looping
+        // Fail silently — detection errors must not disrupt the user flow
       }
 
-      if (active) timeoutId = setTimeout(runDetection, 250);
+      if (active) timeoutId = setTimeout(runDetection, DETECTION_INTERVAL_MS);
     };
 
     runDetection();
@@ -116,21 +190,21 @@ export default function FaceCapture({ onCapture }: FaceCaptureProps) {
   const handleCapture = async () => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (!imageSrc) return;
+
     setCapturing(true);
-    const res = await fetch(imageSrc);
-    const blob = await res.blob();
-    const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
-    onCapture(file);
+    const blob = await fetch(imageSrc).then((r) => r.blob());
+    onCapture(new File([blob], 'selfie.jpg', { type: 'image/jpeg' }));
     setCapturing(false);
   };
 
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-3">
+      {/* Camera feed with oval overlay */}
       <div className="relative overflow-hidden rounded">
         <Webcam
           ref={webcamRef}
           screenshotFormat="image/jpeg"
-          videoConstraints={{ facingMode: 'user', width: 640, height: 480 }}
+          videoConstraints={VIDEO_CONSTRAINTS}
           className="w-full transform-[scaleX(-1)]"
         />
         <canvas
@@ -141,6 +215,7 @@ export default function FaceCapture({ onCapture }: FaceCaptureProps) {
         />
       </div>
 
+      {/* Live alignment status */}
       <p
         className={`text-center text-sm font-medium ${
           status === 'valid' ? 'text-green-600' : 'text-destructive'
@@ -149,6 +224,17 @@ export default function FaceCapture({ onCapture }: FaceCaptureProps) {
         {STATUS_MESSAGE[status]}
       </p>
 
+      {/* Photo quality rules */}
+      <ul className="space-y-1.5 rounded-lg border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+        {PHOTO_RULES.map((rule) => (
+          <li key={rule} className="flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500" />
+            {rule}
+          </li>
+        ))}
+      </ul>
+
+      {/* Capture button */}
       <Button
         onClick={handleCapture}
         disabled={status !== 'valid' || capturing}
