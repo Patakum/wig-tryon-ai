@@ -3,6 +3,8 @@ interface Wig {
   id: string;
   name: string;
   imageUrl: string;
+  price?: number | null;
+  description?: string | null;
 }
 
 interface UploadedPhoto {
