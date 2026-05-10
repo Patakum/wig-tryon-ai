@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: (
       process.env.NEXT_PUBLIC_ALLOWED_IMAGE_HOSTS ||
-      'res.cloudinary.com,*.gstatic.com,*.googleusercontent.com'
+      'res.cloudinary.com,*.gstatic.com,*.googleusercontent.com,cdn.builder.io'
     )
       .split(',')
       .map((host) => ({

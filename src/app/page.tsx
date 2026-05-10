@@ -1,9 +1,17 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Facebook, Twitter, Globe } from 'lucide-react';
+import {
+  Facebook,
+  Twitter,
+  Globe,
+  Search,
+  Heart,
+  ShoppingBag,
+} from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import HomeWigCard from '@/src/components/HomeWigCard';
 import { getLatestWigs } from '@/src/services/wig';
+import AuthButton from '../components/AuthButton';
 
 export default async function Home() {
   const wigs = await getLatestWigs(8);
@@ -11,46 +19,56 @@ export default async function Home() {
   return (
     <main className="bg-white">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative bg-stone-300 px-0 py-0">
-        <div className="relative flex flex-col items-center justify-center">
-          {/* Logo positioned at top */}
-          <div className="absolute top-4 left-6 z-10">
-            <Image
-              src="/icon.png"
-              alt="Racheli Wig Design"
-              width={60}
-              height={60}
-              className="rounded-full border-4 border-white bg-white p-2 shadow-md"
-              priority
-            />
-          </div>
+      <section className="relative bg-stone-300">
+        {/* Hero image */}
+        <Image
+          src="https://res.cloudinary.com/dtj6h6gpv/image/upload/v1777210734/wig-ai/wigs/iwljmmjp5i52zkwncoz5.jpg"
+          alt="Model wearing wig"
+          width={400}
+          height={500}
+          className="w-full h-auto object-cover"
+          priority
+        />
 
-          {/* Hero image */}
+        {/* Logo */}
+        <div className="absolute top-4 left-6 z-10">
           <Image
-            src="https://cdn.builder.io/api/v1/image/assets%2F58bde8540cd7422dade9049ed23deed8%2F012076b7126849118e47eceb6eac2c12?format=webp&width=800&height=1200"
-            alt="Model wearing wig"
-            width={400}
-            height={500}
-            className="w-full h-auto object-cover"
+            src="/icon.png"
+            alt="Racheli Wig Design"
+            width={140}
+            height={140}
+            className="rounded-full border-4 border-white bg-white p-2 shadow-md sm:w-[140px] sm:h-[140px]  object-cover"
             priority
           />
-
-          {/* Text overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-6">
-            <h1 className="text-3xl font-light tracking-wider">
-              TRY WIGS
-              <br />
-              ON REAL TIME
-            </h1>
-          </div>
-
-          {/* CTA Button */}
-          <Link href="/upload" className="absolute bottom-6 right-6">
-            <Button variant="default" className="rounded-full px-6 py-2 text-sm">
-              TRY WIG
-            </Button>
-          </Link>
         </div>
+
+        {/* Icons */}
+        <div className="absolute top-4 right-6 z-10 flex gap-4">
+          <button className="text-white hover:scale-110 transition-transform">
+            <Search size={24} />
+          </button>
+          <AuthButton className="text-white hover:scale-110 transition-transform" />
+          <button className="text-white hover:scale-110 transition-transform">
+            <Heart size={24} />
+          </button>
+          <button className="text-white hover:scale-110 transition-transform">
+            <ShoppingBag size={24} />
+          </button>
+        </div>
+
+        {/* Text overlay */}
+        <div className="absolute top-1/6 right-8 z-10 text-white">
+          <h1 className="text-4xl font-light tracking-wider text-right">
+            TRY WIGS
+            <br />
+            ON REAL TIME
+          </h1>
+        </div>
+
+        {/* CTA Button */}
+        <Link href="/upload" className="absolute bottom-6 right-6 z-10">
+          <Button variant="default">TRY WIG</Button>
+        </Link>
       </section>
 
       {/* ── Best Products ─────────────────────────────────────────────── */}

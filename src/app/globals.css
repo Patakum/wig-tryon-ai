@@ -55,7 +55,7 @@
   --card-foreground: oklch(0.09 0 0);            /* #050505 */
   --popover: oklch(1 0 0);                       /* #FFFFFF */
   --popover-foreground: oklch(0.09 0 0);         /* #050505 */
-  --primary: oklch(0.40 0.065 46);               /* #6B4F3F – brand brown */
+  --primary: oklch(0.81 0.040 52);               /* #D8C2AE – brand brown */
   --primary-foreground: oklch(1 0 0);            /* #FFFFFF */
   --secondary: oklch(0.87 0.018 56);             /* #DFD6CF – very light warm */
   --secondary-foreground: oklch(0.40 0.065 46);  /* #6B4F3F */
