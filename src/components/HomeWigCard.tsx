@@ -21,7 +21,7 @@ export default function HomeWigCard({ name, imageUrl, price }: HomeWigCardProps)
           unoptimized
         />
       </div>
-      <div className="mt-2 text-center">
+      <div className="mt-2 flex flex-col items-start gap-1">
         <p className="text-sm">{name}</p>
         {price != null && (
           <p className="text-sm text-muted-foreground">{price} ₪</p>

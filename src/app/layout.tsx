@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
-import { Geist_Mono, Roboto, Josefin_Sans } from 'next/font/google';
+import { Roboto, Josefin_Sans } from 'next/font/google';
 import './globals.css';
 import { ReactNode } from 'react';
-import Header from '../components/Header';
 import Providers from '../components/Providers';
 
 const josefinSans = Josefin_Sans({
@@ -14,6 +13,7 @@ const josefinSans = Josefin_Sans({
 const roboto = Roboto({
   variable: '--font-roboto',
   subsets: ['latin', 'greek'],
+  weight: ['300', '400', '500', '700'],
 });
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body
-        className={`${josefinSans.variable} ${roboto.variable} antialiased`}
+        className={`${josefinSans.variable} ${roboto.variable} antialiased pt-10`}
       >
         <Providers>
           {children}
