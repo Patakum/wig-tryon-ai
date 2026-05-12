@@ -14,14 +14,24 @@ export default function AuthButton({
 
   if (session) {
     return (
-      <button onClick={() => signOut()} className={className}>
+      <button
+        type="button"
+        onClick={() => signOut()}
+        className={className}
+        aria-label="Sign out"
+      >
         <LogOutIcon size={size} />
       </button>
     );
   }
 
   return (
-    <button onClick={() => signIn('google')} className={className}>
+    <button
+      type="button"
+      onClick={() => signIn('google')}
+      className={className}
+      aria-label="Sign in with Google"
+    >
       <CircleUser size={size} />
     </button>
   );
