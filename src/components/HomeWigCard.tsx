@@ -17,7 +17,7 @@ export default function HomeWigCard({ name, imageUrl, price }: HomeWigCardProps)
           alt={name}
           width={400}
           height={480}
-          className="w-full aspect-4/5 object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full aspect-[4/5] object-cover transition-transform duration-300 group-hover:scale-105"
           unoptimized
         />
       </div>

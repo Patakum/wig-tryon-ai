@@ -162,8 +162,10 @@ export default function FaceCapture({ onCapture }: FaceCaptureProps) {
         const nextStatus: FaceStatus =
           detections.length === 0
             ? 'no-face'
-            : isFaceCentered(detections[0].box, canvas, video)
-              ? 'valid'
+            : detections.length === 1
+              ? isFaceCentered(detections[0].box, canvas, video)
+                ? 'valid'
+                : 'align'
               : 'align';
 
         drawOvalOverlay(
