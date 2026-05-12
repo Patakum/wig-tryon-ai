@@ -75,15 +75,18 @@ function HeroSection() {
         <h1 className="text-2xl sm:text-3xl font-light tracking-wider">
           TRY WIGS
           <br />
-          ON REAL TIME
+          IN REAL TIME
         </h1>
       </div>
 
-      <Link href="/upload" className="absolute bottom-12 right-4 z-10">
-        <Button variant="default" size="lg">
-          TRY WIG
-        </Button>
-      </Link>
+      <Button
+        asChild
+        variant="default"
+        size="lg"
+        className="absolute bottom-12 right-4 z-10"
+      >
+        <Link href="/upload">TRY WIG</Link>
+      </Button>
     </section>
   );
 }

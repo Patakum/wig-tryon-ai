@@ -19,7 +19,7 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: 'Racheli Wig AI',
   description:
-    'Try wigs on real time with Racheli Wig AI. Upload your photo and see how different wigs look on you instantly.',
+    'Try wigs in real time with Racheli Wig AI. Upload your photo and see how different wigs look on you instantly.',
 };
 
 export default function RootLayout({
