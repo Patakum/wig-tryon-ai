@@ -25,6 +25,14 @@ export async function createWig(data: {
   });
 }
 
+export async function getLatestWigs(limit = 8) {
+  return prisma.wig.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: { id: true, name: true, imageUrl: true, price: true },
+  });
+}
+
 export async function getWigOrThrow(wigId: string) {
   const wig = await prisma.wig.findUnique({ where: { id: wigId } });
 
