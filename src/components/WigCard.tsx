@@ -1,27 +1,33 @@
-import Image from "next/image";
-import { Wig } from "@/src/types";
+import Image from 'next/image';
+import Link from 'next/link';
 
-export default function WigCard({
-  wig,
-  onSelect,
-}: {
-  wig: Wig;
-  onSelect: (wigId: string) => void;
-}) {
+type WigCardProps = {
+  id: string;
+  name: string;
+  imageUrl: string;
+  price?: number | null;
+  href: string;
+};
+
+export default function WigCard({ name, imageUrl, price, href }: WigCardProps) {
   return (
-    <div
-      className="border rounded-xl p-2 cursor-pointer hover:shadow-md"
-      onClick={() => onSelect(wig.id)}
-    >
-      <Image
-        src={wig.imageUrl}
-        alt={wig.name}
-        width={500}
-        height={500}
-        className="rounded-lg w-full h-48 object-cover"
-        unoptimized
-      />
-      <p className="mt-2 text-center">{wig.name}</p>
-    </div>
+    <Link href={href} className="group block">
+      <div className="overflow-hidden rounded-xl">
+        <Image
+          src={imageUrl}
+          alt={name}
+          width={300}
+          height={400}
+          className="w-full aspect-4/5 object-cover transition-transform duration-300 group-hover:scale-105"
+          unoptimized
+        />
+      </div>
+      <div className="mt-1 flex flex-col">
+        <h3 className="text-sm">{name}</h3>
+        {price != null && (
+          <p className="text-sm text-muted-foreground">{price} ₪</p>
+        )}
+      </div>
+    </Link>
   );
 }
