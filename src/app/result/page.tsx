@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createWhatsAppLink } from '@/src/lib/whatsapp';
 import { prisma } from '@/src/lib/prisma';
 import Feedback from '@/src/components/Feedback';
+import PageContainer from '@/src/components/PageContainer';
 
 type ResultPageProps = {
   searchParams: Promise<{
@@ -27,13 +28,13 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
 
   if (!generation.resultImageUrl) {
     return (
-      <div className="p-4">
+      <PageContainer className="p-4">
         <h1 className="text-xl font-semibold">Your Result</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Your image is still being generated. Please refresh this page in a few
           seconds.
         </p>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -54,7 +55,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
     : null;
 
   return (
-    <div className="p-4">
+    <PageContainer className="p-4">
       <h1 className="text-xl font-semibold">Your Result</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Selected wig: {wigName}
@@ -81,6 +82,6 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
         </p>
       )}
       <Feedback id={id} />
-    </div>
+    </PageContainer>
   );
 }

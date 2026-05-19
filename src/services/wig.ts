@@ -33,6 +33,20 @@ export async function getLatestWigs(limit = 8) {
   });
 }
 
+export async function getWigs() {
+  return prisma.wig.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true, imageUrl: true, price: true },
+  });
+}
+
+export async function getWig(wigId: string) {
+  return prisma.wig.findUnique({
+    where: { id: wigId },
+    select: { id: true, name: true, imageUrl: true, price: true, description: true },
+  });
+}
+
 export async function getWigOrThrow(wigId: string) {
   const wig = await prisma.wig.findUnique({ where: { id: wigId } });
 

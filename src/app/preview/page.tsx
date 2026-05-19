@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { notFound, redirect } from 'next/navigation';
 import GenerateButton from '../../components/GenerateButton';
 import { prisma } from '@/src/lib/prisma';
+import PageContainer from '@/src/components/PageContainer';
 
 type PreviewPageProps = {
   searchParams: Promise<{
@@ -35,7 +36,7 @@ export default async function PreviewPage({ searchParams }: PreviewPageProps) {
   }
 
   return (
-    <main className="mx-auto max-w-5xl p-4 md:p-8">
+    <PageContainer className="mx-auto max-w-5xl p-4 md:p-8">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">Confirm your selection</h1>
         <p className="text-sm text-muted-foreground">
@@ -90,6 +91,6 @@ export default async function PreviewPage({ searchParams }: PreviewPageProps) {
 
         <GenerateButton photoId={photoId} wigId={wigId} />
       </div>
-    </main>
+    </PageContainer>
   );
 }

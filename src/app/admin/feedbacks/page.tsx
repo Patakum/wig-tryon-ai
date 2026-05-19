@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/src/components/ui/card';
+import Image from 'next/image';
 
 export default async function AdminFeedbacksPage() {
   const feedbacks = await prisma.feedback.findMany({
@@ -46,10 +47,12 @@ export default async function AdminFeedbacksPage() {
                 <p>Wig: {feedback.generation.wig.name}</p>
               </div>
                 {feedback.generation.resultImageUrl && (
-                  <img
+                  <Image
                     src={feedback.generation.resultImageUrl}
                     alt={`Result for ${feedback.generation.wig.name}`}
                     className="mt-2 max-h-48 w-auto rounded"
+                    width={1920}
+                    height={1080}
                   />
                 )}
             </CardContent>
