@@ -75,7 +75,7 @@ export default function SelfieUploader({
   const [mode, setMode] = useState<InputMode>('upload');
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col gap-4">
       {!previewUrl && (
         <div className="flex gap-2">
           <Button
@@ -120,16 +120,19 @@ export default function SelfieUploader({
       )}
 
       {previewUrl && (
-        <div>
-          <p className="mb-2 text-sm font-medium text-muted-foreground">
+        <div className="flex-1 min-h-0 flex flex-col">
+          <p className="mb-2 text-sm font-medium text-muted-foreground shrink-0">
             תמונתך
           </p>
-          <UploadedImagePreview
-            imageUrl={previewUrl}
-            alt="Selfie preview"
-            showRemoveButton
-            onRemove={onRemove}
-          />
+          <div className="flex-1 min-h-0">
+            <UploadedImagePreview
+              imageUrl={previewUrl}
+              alt="Selfie preview"
+              className="h-full"
+              showRemoveButton
+              onRemove={onRemove}
+            />
+          </div>
         </div>
       )}
     </div>

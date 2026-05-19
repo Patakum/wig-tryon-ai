@@ -25,11 +25,6 @@ export default function UploadRulesDialog({
 }: UploadRulesDialogProps) {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setOpen(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
