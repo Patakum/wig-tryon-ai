@@ -1,9 +1,12 @@
 import OpenAI, { toFile } from 'openai';
+import sharp from 'sharp';
 import { prisma } from '@/src/lib/prisma';
 import { uploadGeneration } from '@/src/lib/cloudinary-utils';
 import { throwApiError } from '@/src/lib/api/errors';
 import { getWigOrThrow } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
+import { segmentHair } from '@/src/lib/replicate';
+import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
 
 function getOpenAiClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -86,10 +89,26 @@ export async function generateTryOn(params: {
     },
   });
 
-  const [selfieResponse, wigResponse] = await Promise.all([
-    fetch(photo.imageUrl),
-    fetch(wig.imageUrl),
-  ]);
+  // Run hair segmentation in parallel with image fetching AND pre-build the
+  // geometric mask — all three are independent and can run concurrently.
+  // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is set.
+  const segmentationPromise = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL
+    ? segmentHair(photo.imageUrl).catch((err: unknown) => {
+        console.warn(
+          '[generation] Hair segmentation failed — falling back to geometric mask:',
+          err,
+        );
+        return null;
+      })
+    : Promise.resolve(null);
+
+  const [selfieResponse, wigResponse, maskUrl, geometricMaskBuffer] =
+    await Promise.all([
+      fetch(photo.imageUrl),
+      fetch(wig.imageUrl),
+      segmentationPromise,
+      buildGeometricHairMask(1024, 1024), // built during network I/O — free latency
+    ]);
 
   if (!selfieResponse.ok || !wigResponse.ok) {
     await prisma.generation.update({
@@ -109,34 +128,43 @@ export async function generateTryOn(params: {
     wigResponse.arrayBuffer(),
   ]);
 
-  const [selfieFile, wigFile] = await Promise.all([
-    toFile(Buffer.from(selfieBuffer), 'selfie.png', { type: 'image/png' }),
-    toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
+  // Normalize selfie to 1024×1024 in parallel with fetching an AI mask (if any).
+  // OpenAI requires mask and image to be the exact same dimensions.
+  const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
+    sharp(Buffer.from(selfieBuffer))
+      .resize(1024, 1024, { fit: 'cover', position: 'top' })
+      .png()
+      .toBuffer(),
+    maskUrl
+      ? buildHairMask(maskUrl, 1024, 1024).catch((err: unknown) => {
+          console.warn('[generation] Failed to build AI hair mask:', err);
+          return null;
+        })
+      : Promise.resolve(null),
   ]);
 
-  const prompt = `
-    Replace ONLY the hair of the person in the first image with the hairstyle from the second image.
+  const chosenMaskBuffer = aiMaskBuffer ?? geometricMaskBuffer;
 
-    Do not change the face, skin, lighting, or identity.
-    
-    do not smooth skin, do not change face texture, do not alter identity
+  // Convert all three inputs to File objects in parallel.
+  const [selfieFile, wigFile, maskFile] = await Promise.all([
+    toFile(normalizedSelfieBuffer, 'selfie.png', { type: 'image/png' }),
+    toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
+    toFile(chosenMaskBuffer, 'mask.png', { type: 'image/png' }),
+  ]);
 
-    Keep every facial detail exactly the same.
+  const prompt = `Replace the hair in the masked area with the hairstyle from the second image.
+Keep the face, skin tone, lighting, and identity completely unchanged.
+Blend seamlessly. Photorealistic result.`;
 
-    Only modify the hair region.
-
-    Photorealistic, seamless blending.
-  `;
   const response = await openai.images.edit({
-    // todo: consider using a custom-trained model if quality is not good enough
-   // use the new gpt image to have better performance 
     model: 'gpt-image-1',
     image: [selfieFile, wigFile],
+    mask: maskFile,
     prompt,
-    // todo: test different sizes and quality settings to find the best balance of quality, speed, and cost
-    quality:'low',
-    // quality: 'auto',
+    quality: 'high',
     size: '1024x1024',
+    // jpeg is faster for OpenAI to produce and smaller to upload to Cloudinary
+    output_format: 'jpeg',
   });
 
   const base64 = response.data?.[0]?.b64_json;
@@ -151,7 +179,7 @@ export async function generateTryOn(params: {
   }
 
   const { secureUrl: resultUrl } = await uploadGeneration(
-    `data:image/png;base64,${base64}`,
+    `data:image/jpeg;base64,${base64}`,
   );
 
   await prisma.generation.update({
