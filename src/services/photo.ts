@@ -84,3 +84,11 @@ export async function getPhotoForViewer(
 
   return photo;
 }
+
+export async function getPhoto(photoId: string) {
+  const photo = await prisma.photo.findUnique({ where: { id: photoId } });
+  if (!photo) {
+    throwApiError(404, 'NOT_FOUND', 'Photo not found');
+  }
+  return photo;
+}

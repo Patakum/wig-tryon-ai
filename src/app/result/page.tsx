@@ -3,7 +3,9 @@ import { createWhatsAppLink } from '@/src/lib/whatsapp';
 import { prisma } from '@/src/lib/prisma';
 import Feedback from '@/src/components/Feedback';
 import PageContainer from '@/src/components/PageContainer';
-import CustomImage from '@/src/components/ui/Image';
+import CompareSlider from '@/src/components/ui/CompareSlider';
+import { getWig } from '@/src/services/wig';
+import { getPhoto } from '@/src/services/photo';
 
 type ResultPageProps = {
   searchParams: Promise<{
@@ -40,9 +42,10 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
   }
 
   const wigId = generation.wigId;
-  const wig = await prisma.wig.findUnique({
-    where: { id: wigId },
-  });
+  const [wig, photo] = await Promise.all([
+    getWig(wigId),
+    getPhoto(generation.photoId),
+  ]);
 
   const wigName = wig?.name || 'Selected wig';
   const wigImageUrl = wig?.imageUrl || '';
@@ -62,11 +65,23 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
         הפאה שנבחרה: {wigName}
       </p>
 
-      <CustomImage
-        src={generation.resultImageUrl}
-        alt="result"
-        className="mt-4 rounded-xl"
-      />
+      {photo?.imageUrl ? (
+        <div className="mt-4">
+          <CompareSlider
+            beforeUrl={photo.imageUrl}
+            afterUrl={generation.resultImageUrl}
+          />
+          <div className="flex justify-between mt-1 text-xs text-muted-foreground px-1">
+            <span>לפני</span>
+            <span>אחרי</span>
+          </div>
+        </div>
+      ) : (
+        <CompareSlider
+          beforeUrl={wigImageUrl}
+          afterUrl={generation.resultImageUrl}
+        />
+      )}
 
       {whatsappLink ? (
         <a
