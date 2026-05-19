@@ -1,11 +1,10 @@
 import { notFound, redirect } from 'next/navigation';
-import { createWhatsAppLink } from '@/src/lib/whatsapp';
 import { prisma } from '@/src/lib/prisma';
-import Feedback from '@/src/components/Feedback';
 import PageContainer from '@/src/components/PageContainer';
-import CompareSlider from '@/src/components/ui/CompareSlider';
+import PageHeader from '@/src/components/generationLoader/PageHeader';
 import { getWig } from '@/src/services/wig';
 import { getPhoto } from '@/src/services/photo';
+import ResultPageClient from './ResultPageClient';
 
 type ResultPageProps = {
   searchParams: Promise<{
@@ -51,53 +50,17 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
   const wigImageUrl = wig?.imageUrl || '';
   const whatsappPhone = process.env.WHATSAPP_PHONE;
 
-  const whatsappLink = whatsappPhone
-    ? createWhatsAppLink({
-        phone: whatsappPhone,
-        message: `Hi, I chose the wig \"${wigName}\". Wig image: ${wigImageUrl}. Generated result: ${generation.resultImageUrl}`,
-      })
-    : null;
-
   return (
     <PageContainer className="p-4">
-      <h1 className="text-xl font-semibold">התוצאה שלך</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        הפאה שנבחרה: {wigName}
-      </p>
-
-      {photo?.imageUrl ? (
-        <div className="mt-4">
-          <CompareSlider
-            beforeUrl={photo.imageUrl}
-            afterUrl={generation.resultImageUrl}
-          />
-          <div className="flex justify-between mt-1 text-xs text-muted-foreground px-1">
-            <span>לפני</span>
-            <span>אחרי</span>
-          </div>
-        </div>
-      ) : (
-        <CompareSlider
-          beforeUrl={wigImageUrl}
-          afterUrl={generation.resultImageUrl}
-        />
-      )}
-
-      {whatsappLink ? (
-        <a
-          href={whatsappLink}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex rounded-full bg-secondary-foreground px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          שליחת הודעה ב WhatsApp
-        </a>
-      ) : (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Set WHATSAPP_PHONE in your environment to enable WhatsApp sharing.
-        </p>
-      )}
-      <Feedback id={id} />
+      <PageHeader title="התוצאה שלך" backHref={`upload?wigId=${wigId}`} />
+      <ResultPageClient
+        generationId={generation.id}
+        wigName={wigName}
+        wigImageUrl={wigImageUrl}
+        photoImageUrl={photo.imageUrl || ''}
+        resultImageUrl={generation.resultImageUrl}
+        whatsappPhone={whatsappPhone}
+      />
     </PageContainer>
   );
 }
