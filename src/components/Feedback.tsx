@@ -5,6 +5,7 @@ import {
   feedbackReducer,
   initialFeedbackState,
 } from '@/src/components/Feedback.reducer';
+import { Button } from './ui/button';
 
 export default function Feedback({ id }: { id: string }) {
   const [state, dispatch] = useReducer(feedbackReducer, initialFeedbackState);
@@ -23,8 +24,8 @@ export default function Feedback({ id }: { id: string }) {
       dispatch({ type: 'SEND_SUCCESS' });
     } catch (error) {
       const message = axios.isAxiosError(error)
-        ? (error.response?.data?.error?.message ?? 'Failed to send feedback')
-        : 'Failed to send feedback';
+        ? (error.response?.data?.error?.message ?? 'נכשל בשליחת המשוב')
+        : 'נכשל בשליחת המשוב';
 
       dispatch({ type: 'SEND_ERROR', payload: message });
     }
@@ -32,7 +33,7 @@ export default function Feedback({ id }: { id: string }) {
 
   return (
     <div className="mt-6">
-      <h2 className="text-lg mb-2">Leave feedback</h2>
+      <h2 className="text-lg mb-2">השאר משוב</h2>
 
       <textarea
         value={state.message}
@@ -40,18 +41,19 @@ export default function Feedback({ id }: { id: string }) {
           dispatch({ type: 'SET_MESSAGE', payload: e.target.value })
         }
         className="w-full border rounded p-2"
-        placeholder="Write your message..."
+        placeholder="כתוב את חוות דעתך..."
       />
 
-      <button
+      <Button
         onClick={handleSubmit}
         disabled={state.sending}
-        className="mt-2 bg-black text-white px-4 py-2 rounded"
+        variant="default"
+        className="mt-2 bg-secondary-foreground"
       >
-        {state.sending ? 'Sending...' : 'Send feedback'}
-      </button>
+        {state.sending ? 'שולח...' : 'שלח משוב'}
+      </Button>
 
-      {state.success && <p className="text-green-600 mt-2">Feedback sent!</p>}
+      {state.success && <p className="text-green-600 mt-2">המשוב נשלח!</p>}
       {state.error ? <p className="text-red-600 mt-2">{state.error}</p> : null}
     </div>
   );

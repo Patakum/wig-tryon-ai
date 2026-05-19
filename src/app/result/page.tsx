@@ -3,6 +3,7 @@ import { createWhatsAppLink } from '@/src/lib/whatsapp';
 import { prisma } from '@/src/lib/prisma';
 import Feedback from '@/src/components/Feedback';
 import PageContainer from '@/src/components/PageContainer';
+import CustomImage from '@/src/components/ui/Image';
 
 type ResultPageProps = {
   searchParams: Promise<{
@@ -56,12 +57,12 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
 
   return (
     <PageContainer className="p-4">
-      <h1 className="text-xl font-semibold">Your Result</h1>
+      <h1 className="text-xl font-semibold">התוצאה שלך</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Selected wig: {wigName}
+        הפאה שנבחרה: {wigName}
       </p>
 
-      <img
+      <CustomImage
         src={generation.resultImageUrl}
         alt="result"
         className="mt-4 rounded-xl"
@@ -72,9 +73,9 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
           href={whatsappLink}
           target="_blank"
           rel="noreferrer"
-          className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          className="mt-4 inline-flex rounded-full bg-secondary-foreground px-4 py-2 text-sm font-medium text-primary-foreground"
         >
-          Send to WhatsApp
+          שליחת הודעה ב WhatsApp
         </a>
       ) : (
         <p className="mt-4 text-sm text-muted-foreground">
