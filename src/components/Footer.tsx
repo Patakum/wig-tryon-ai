@@ -2,9 +2,11 @@ import { Facebook, Twitter, Globe } from 'lucide-react';
 import { Divider } from '@/src/components/ui/divider';
 
 const CONTACT_INFO = {
-  address: 'כתובת שלנו - רחוב הדוגמה 123, תל אביב',
-  phone: '+972586332053',
-  phoneDisplay: '+ 972-586-332053',
+  address: 'הרצל 123, רחובות, ישראל',
+  phone: `+${process.env.WHATSAPP_PHONE}` || '+',
+  phoneDisplay: process.env.WHATSAPP_PHONE
+    ? `WhatsApp: ${process.env.WHATSAPP_PHONE}`
+    : 'Phone: +',
   email: 'support@company.com',
 };
 
@@ -16,7 +18,7 @@ const SOCIAL_LINKS = [
 
 function ContactSection() {
   return (
-    <address className="not-italic">
+    <address className="not-italic text-sm flex flex-col gap-2">
       <h3 className="mb-2 text-sm font-bold text-stone-900">צור קשר</h3>
       <a
         href={`https://maps.google.com/?q=${encodeURIComponent(CONTACT_INFO.address)}`}
@@ -24,7 +26,7 @@ function ContactSection() {
         rel="noopener noreferrer"
         className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
       >
-        {CONTACT_INFO.address}
+        כתובת שלנו - {CONTACT_INFO.address}
       </a>
       <a
         href={`tel:${CONTACT_INFO.phone}`}

@@ -68,14 +68,12 @@ export async function createFeedbackForGeneration(params: {
   });
 }
 
-export async function generateTryOn(params: {
+export async function createPendingGeneration(params: {
   photoId: string;
   wigId: string;
   viewerUserId: string | null;
 }) {
-  const openai = getOpenAiClient();
-
-  const [photo, wig] = await Promise.all([
+  const [photo] = await Promise.all([
     getPhotoForViewer(params.photoId, params.viewerUserId),
     getWigOrThrow(params.wigId),
   ]);
@@ -89,106 +87,135 @@ export async function generateTryOn(params: {
     },
   });
 
-  // Run hair segmentation in parallel with image fetching AND pre-build the
-  // geometric mask — all three are independent and can run concurrently.
-  // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is set.
-  const segmentationPromise = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL
-    ? segmentHair(photo.imageUrl).catch((err: unknown) => {
-        console.warn(
-          '[generation] Hair segmentation failed — falling back to geometric mask:',
-          err,
-        );
-        return null;
-      })
-    : Promise.resolve(null);
+  return { generationId: generation.id };
+}
 
-  const [selfieResponse, wigResponse, maskUrl, geometricMaskBuffer] =
-    await Promise.all([
-      fetch(photo.imageUrl),
-      fetch(wig.imageUrl),
-      segmentationPromise,
-      buildGeometricHairMask(1024, 1024), // built during network I/O — free latency
-    ]);
+export async function runGeneration(generationId: string): Promise<void> {
+  const openai = getOpenAiClient();
 
-  if (!selfieResponse.ok || !wigResponse.ok) {
-    await prisma.generation.update({
-      where: { id: generation.id },
-      data: { status: 'failed' },
-    });
+  const generation = await prisma.generation.findUnique({
+    where: { id: generationId },
+  });
 
-    throwApiError(
-      500,
-      'UPSTREAM_IMAGE_FETCH_FAILED',
-      'Failed to fetch images for generation.',
-    );
+  if (!generation) {
+    throw new Error(`Generation not found: ${generationId}`);
   }
 
-  const [selfieBuffer, wigBuffer] = await Promise.all([
-    selfieResponse.arrayBuffer(),
-    wigResponse.arrayBuffer(),
+  const [photo, wig] = await Promise.all([
+    prisma.photo.findUnique({ where: { id: generation.photoId } }),
+    prisma.wig.findUnique({ where: { id: generation.wigId } }),
   ]);
 
-  // Normalize selfie to 1024×1024 in parallel with fetching an AI mask (if any).
-  // OpenAI requires mask and image to be the exact same dimensions.
-  const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
-    sharp(Buffer.from(selfieBuffer))
-      .resize(1024, 1024, { fit: 'cover', position: 'top' })
-      .png()
-      .toBuffer(),
-    maskUrl
-      ? buildHairMask(maskUrl, 1024, 1024).catch((err: unknown) => {
-          console.warn('[generation] Failed to build AI hair mask:', err);
+  if (!photo || !wig) {
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: { status: 'failed' },
+    });
+    throw new Error('Photo or wig not found for generation');
+  }
+
+  try {
+    // Run hair segmentation in parallel with image fetching AND pre-build the
+    // geometric mask — all three are independent and can run concurrently.
+    // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is set.
+    const segmentationPromise = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL
+      ? segmentHair(photo.imageUrl).catch((err: unknown) => {
+          console.warn(
+            '[generation] Hair segmentation failed — falling back to geometric mask:',
+            err,
+          );
           return null;
         })
-      : Promise.resolve(null),
-  ]);
+      : Promise.resolve(null);
 
-  const chosenMaskBuffer = aiMaskBuffer ?? geometricMaskBuffer;
+    const [selfieResponse, wigResponse, maskUrl, geometricMaskBuffer] =
+      await Promise.all([
+        fetch(photo.imageUrl),
+        fetch(wig.imageUrl),
+        segmentationPromise,
+        buildGeometricHairMask(1024, 1024),
+      ]);
 
-  // Convert all three inputs to File objects in parallel.
-  const [selfieFile, wigFile, maskFile] = await Promise.all([
-    toFile(normalizedSelfieBuffer, 'selfie.png', { type: 'image/png' }),
-    toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
-    toFile(chosenMaskBuffer, 'mask.png', { type: 'image/png' }),
-  ]);
+    if (!selfieResponse.ok || !wigResponse.ok) {
+      throw new Error('Failed to fetch images for generation.');
+    }
 
-  const prompt = `Replace the hair in the masked area with the hairstyle from the second image.
+    const [selfieBuffer, wigBuffer] = await Promise.all([
+      selfieResponse.arrayBuffer(),
+      wigResponse.arrayBuffer(),
+    ]);
+
+    // Normalize selfie to 1024×1024 in parallel with fetching an AI mask (if any).
+    // OpenAI requires mask and image to be the exact same dimensions.
+    const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
+      sharp(Buffer.from(selfieBuffer))
+        .resize(1024, 1024, { fit: 'cover', position: 'top' })
+        .png()
+        .toBuffer(),
+      maskUrl
+        ? buildHairMask(maskUrl, 1024, 1024).catch((err: unknown) => {
+            console.warn('[generation] Failed to build AI hair mask:', err);
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const chosenMaskBuffer = aiMaskBuffer ?? geometricMaskBuffer;
+
+    // Convert all three inputs to File objects in parallel.
+    const [selfieFile, wigFile, maskFile] = await Promise.all([
+      toFile(normalizedSelfieBuffer, 'selfie.png', { type: 'image/png' }),
+      toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
+      toFile(chosenMaskBuffer, 'mask.png', { type: 'image/png' }),
+    ]);
+
+    const prompt = `Replace the hair in the masked area with the hairstyle from the second image.
 Keep the face, skin tone, lighting, and identity completely unchanged.
 Blend seamlessly. Photorealistic result.`;
 
-  const response = await openai.images.edit({
-    model: 'gpt-image-1',
-    image: [selfieFile, wigFile],
-    mask: maskFile,
-    prompt,
-    quality: 'high',
-    size: '1024x1024',
-    // jpeg is faster for OpenAI to produce and smaller to upload to Cloudinary
-    output_format: 'jpeg',
-  });
-
-  const base64 = response.data?.[0]?.b64_json;
-
-  if (!base64) {
-    await prisma.generation.update({
-      where: { id: generation.id },
-      data: { status: 'failed' },
+    const response = await openai.images.edit({
+      model: 'gpt-image-1',
+      image: [selfieFile, wigFile],
+      mask: maskFile,
+      prompt,
+      quality: 'high',
+      size: '1024x1024',
+      // jpeg is faster for OpenAI to produce and smaller to upload to Cloudinary
+      output_format: 'jpeg',
     });
 
-    throwApiError(500, 'OPENAI_EMPTY_IMAGE', 'OpenAI returned no image data.');
+    const base64 = response.data?.[0]?.b64_json;
+
+    if (!base64) {
+      throw new Error('OpenAI returned no image data.');
+    }
+
+    const { secureUrl: resultUrl } = await uploadGeneration(
+      `data:image/jpeg;base64,${base64}`,
+    );
+
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: {
+        resultImageUrl: resultUrl,
+        status: 'completed',
+      },
+    });
+  } catch (err) {
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: { status: 'failed' },
+    });
+    throw err;
   }
+}
 
-  const { secureUrl: resultUrl } = await uploadGeneration(
-    `data:image/jpeg;base64,${base64}`,
-  );
-
-  await prisma.generation.update({
-    where: { id: generation.id },
-    data: {
-      resultImageUrl: resultUrl,
-      status: 'completed',
-    },
-  });
-
-  return { generationId: generation.id };
+export async function generateTryOn(params: {
+  photoId: string;
+  wigId: string;
+  viewerUserId: string | null;
+}) {
+  const { generationId } = await createPendingGeneration(params);
+  await runGeneration(generationId);
+  return { generationId };
 }

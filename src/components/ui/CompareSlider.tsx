@@ -17,9 +17,9 @@ export default function CompareSlider({
   afterUrl,
 }: CompareSliderProps) {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => setMounted((prev) => !prev), []);
 
-  if (!mounted) return <Skeleton className="h-[400px] w-full rounded-xl" />;
+  if (!mounted) return <Skeleton className="h-100 w-full rounded-xl" />;
 
   return (
     <ReactCompareSlider

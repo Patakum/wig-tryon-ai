@@ -59,9 +59,9 @@ export default function ResultPageClient({
           Set WHATSAPP_PHONE in your environment to enable WhatsApp sharing.
         </p>
       )}
-      
+
       <Feedback id={generationId} />
-      
+
       <p className="mt-4 text-xs bg-amber-200 p-2 rounded">
         *התוצאות הן להמחשה בלבד ותלויות באיכות התמונה שהועלתה ובבחירת הפאה.
         ייתכן שהתוצאה לא תדמה במדויק את המראה האמיתי של הפאה על הראש.

@@ -1,10 +1,11 @@
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/src/lib/prisma';
 import PageContainer from '@/src/components/PageContainer';
-import PageHeader from '@/src/components/generationLoader/PageHeader';
-import { getWig } from '@/src/services/wig';
+import PageHeader from '@/src/components/PageHeader';
+import { getWig, getLatestWigs } from '@/src/services/wig';
 import { getPhoto } from '@/src/services/photo';
 import ResultPageClient from './ResultPageClient';
+import ResultLoadingClient from './ResultLoadingClient';
 
 type ResultPageProps = {
   searchParams: Promise<{
@@ -28,26 +29,33 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
     notFound();
   }
 
+  const wigId = generation.wigId;
+  const [wig, photo, latestWigs] = await Promise.all([
+    getWig(wigId),
+    getPhoto(generation.photoId),
+    getLatestWigs(12),
+  ]);
+
+  const wigName = wig?.name ?? 'Selected wig';
+  const wigImageUrl = wig?.imageUrl ?? '';
+  const wigImages = latestWigs.map((w) => w.imageUrl);
+
   if (!generation.resultImageUrl) {
     return (
       <PageContainer className="p-4">
-        <h1 className="text-xl font-semibold">Your Result</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your image is still being generated. Please refresh this page in a few
-          seconds.
-        </p>
+        <PageHeader title="יוצרים את הפאה שלך..." backHref={`/upload?wigId=${wigId}`} />
+        <ResultLoadingClient
+          generationId={generation.id}
+          wigId={wigId}
+          wigName={wigName}
+          wigImageUrl={wigImageUrl}
+          photoImageUrl={photo.imageUrl}
+          wigImages={wigImages}
+        />
       </PageContainer>
     );
   }
 
-  const wigId = generation.wigId;
-  const [wig, photo] = await Promise.all([
-    getWig(wigId),
-    getPhoto(generation.photoId),
-  ]);
-
-  const wigName = wig?.name || 'Selected wig';
-  const wigImageUrl = wig?.imageUrl || '';
   const whatsappPhone = process.env.WHATSAPP_PHONE;
 
   return (
@@ -57,7 +65,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
         generationId={generation.id}
         wigName={wigName}
         wigImageUrl={wigImageUrl}
-        photoImageUrl={photo.imageUrl || ''}
+        photoImageUrl={photo.imageUrl}
         resultImageUrl={generation.resultImageUrl}
         whatsappPhone={whatsappPhone}
       />
