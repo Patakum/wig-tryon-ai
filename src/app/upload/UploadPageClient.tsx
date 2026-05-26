@@ -22,9 +22,7 @@ function WigPreview({ imageUrl }: { imageUrl: string }) {
         'opacity-100',
       )}
     >
-      <p className="mb-2 text-sm font-medium shrink-0">
-        פאה שנבחרה
-      </p>
+      <p className="mb-2 text-sm font-medium shrink-0">פאה שנבחרה</p>
       <div
         className={cn(
           'flex-1 min-h-0 overflow-hidden',
@@ -118,7 +116,10 @@ export default function UploadPageClient({
           />
         )}
         {upload.stage === 'uploaded' && (
-          <GenerateButton photoId={upload.photoId} wigId={wigId} />
+          <GenerateButton
+            photoId={upload.photoId}
+            wigId={wigId}
+          />
         )}
       </div>
     </div>
