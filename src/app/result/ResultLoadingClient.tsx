@@ -113,7 +113,7 @@ export default function ResultLoadingClient({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden">
+    <div className="fixed py-2 inset-0 z-50 bg-white flex flex-col overflow-hidden">
       <WigMarquee images={wigImages} direction="left" />
 
       <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 overflow-y-auto">

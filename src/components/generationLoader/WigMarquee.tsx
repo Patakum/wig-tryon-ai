@@ -60,18 +60,18 @@ export default function WigMarquee({ images, direction }: WigMarqueeProps) {
   if (images.length === 0) return <Loader2 className="animate-spin" size={50}/>;
 
   return (
-    <div ref={containerRef} className="relative w-full h-44 overflow-hidden">
+    <div ref={containerRef} className="relative w-full h-1/5 overflow-hidden">
       {images.map((src, i) => (
         <div
           key={i}
-          className="absolute top-0 left-0 w-36 h-44 rounded-lg overflow-hidden"
+          className="absolute top-0 left-0 w-36 h-full rounded-lg overflow-hidden"
           style={{ willChange: 'transform' }}
         >
           <Image
             src={src}
             alt=""
-            width={180}
-            height={220}
+            width={140}
+            height={200}
             className="w-full h-full object-cover"
             unoptimized
           />
