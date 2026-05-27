@@ -24,7 +24,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
   const generation = await prisma.generation.findUnique({
     where: { id },
   });
-console.log('Fetched generation:', generation);
+
   if (!generation) {
     notFound();
   }
@@ -43,7 +43,10 @@ console.log('Fetched generation:', generation);
   if (!generation.resultImageUrl) {
     return (
       <PageContainer className="p-4">
-        <PageHeader title="יוצרים את הפאה שלך..." backHref={`/upload?wigId=${wigId}`} />
+        <PageHeader
+          title="יוצרים את הפאה שלך..."
+          backHref={`/upload?wigId=${wigId}`}
+        />
         <ResultLoadingClient
           generationId={generation.id}
           wigId={wigId}

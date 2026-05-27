@@ -172,18 +172,18 @@ export async function runGeneration(generationId: string): Promise<void> {
     const prompt = `Replace the hair in the masked area with the hairstyle from the second image.
 Keep the face, skin tone, lighting, and identity completely unchanged.
 Blend seamlessly. Photorealistic result.`;
-
+console.log('Sending generation request to OpenAI with prompt:');
     const response = await openai.images.edit({
-      model: 'gpt-image-1.5',
+      model: 'gpt-image-1',
       image: [selfieFile, wigFile],
       mask: maskFile,
       prompt,
-      quality: 'medium',
+      quality: 'low',
       size: '1024x1024',
       // jpeg is faster for OpenAI to produce and smaller to upload to Cloudinary
       output_format: 'jpeg',
     });
-
+console.log('OpenAI response:', response);
     const base64 = response.data?.[0]?.b64_json;
 
     if (!base64) {
