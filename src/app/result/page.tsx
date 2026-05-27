@@ -43,7 +43,10 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
   if (!generation.resultImageUrl) {
     return (
       <PageContainer className="p-4">
-        <PageHeader title="יוצרים את הפאה שלך..." backHref={`/upload?wigId=${wigId}`} />
+        <PageHeader
+          title="יוצרים את הפאה שלך..."
+          backHref={`/upload?wigId=${wigId}`}
+        />
         <ResultLoadingClient
           generationId={generation.id}
           wigId={wigId}
