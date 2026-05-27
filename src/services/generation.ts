@@ -174,11 +174,11 @@ Keep the face, skin tone, lighting, and identity completely unchanged.
 Blend seamlessly. Photorealistic result.`;
 
     const response = await openai.images.edit({
-      model: 'gpt-image-1',
+      model: 'gpt-image-1.5',
       image: [selfieFile, wigFile],
       mask: maskFile,
       prompt,
-      quality: 'high',
+      quality: 'medium',
       size: '1024x1024',
       // jpeg is faster for OpenAI to produce and smaller to upload to Cloudinary
       output_format: 'jpeg',

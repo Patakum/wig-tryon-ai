@@ -29,8 +29,8 @@ export default function HeroSection() {
         <MainNav />
       </nav>
 
-      <div className="absolute top-1/12 right-8 z-10 text-white text-center">
-        <h1 className="text-2xl sm:text-3xl font-light tracking-wider">
+      <div className="absolute top-1/8 right-4 z-10 text-center">
+        <h1 className="text-xl md:text-3xl font-bold tracking-wider">
           TRY WIGS
           <br />
           IN REAL TIME

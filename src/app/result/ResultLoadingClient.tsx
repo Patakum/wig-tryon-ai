@@ -119,11 +119,6 @@ export default function ResultLoadingClient({
       <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 overflow-y-auto">
         <p className="text-2xl tracking-[0.3em] font-light">RACHELI</p>
 
-        <div className="flex gap-6 justify-center">
-          <Thumb src={photoImageUrl} label="לפני" />
-          <Thumb src={wigImageUrl} label={wigName} />
-        </div>
-
         <div className="flex flex-col gap-3 w-full max-w-xs">
           {STEPS.map((step, i) => {
             const prevEndAt = i > 0 ? STEPS[i - 1].endAt : 0;
@@ -176,26 +171,6 @@ export default function ResultLoadingClient({
       </div>
 
       <WigMarquee images={wigImages} direction="right" />
-    </div>
-  );
-}
-
-function Thumb({ src, label }: { src: string; label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="w-20 h-24 rounded-xl overflow-hidden border border-border shadow-sm">
-        <Image
-          src={src}
-          alt={label}
-          width={80}
-          height={96}
-          className="w-full h-full object-cover"
-          unoptimized
-        />
-      </div>
-      <span className="text-xs text-muted-foreground text-center w-20 truncate">
-        {label}
-      </span>
     </div>
   );
 }

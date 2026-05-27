@@ -5,27 +5,19 @@ import WigDetailClient from './WigDetailClient';
 import WigActionButtons from './WigActionButtons';
 import PageContainer from '@/src/components/PageContainer';
 
-function ProductImage({
-  src,
-  alt,
-  wigId,
-}: {
-  src: string;
-  alt: string;
-  wigId: string;
-}) {
+function ProductImage({ src, alt }: { src: string; alt: string }) {
   return (
     <figure className="relative w-full bg-gray-50">
-      <WigDetailClient wigId={wigId} />
-        <Image
-          src={src}
-          alt={alt}
-          width={400}
-          height={500}
-          className="w-full h-auto object-cover rounded-xl"
-          priority
-          unoptimized
-        />
+      <WigDetailClient />
+      <Image
+        src={src}
+        alt={alt}
+        width={400}
+        height={500}
+        className="w-full h-auto object-cover rounded-xl"
+        priority
+        unoptimized
+      />
     </figure>
   );
 }
@@ -33,9 +25,11 @@ function ProductImage({
 function ProductInfo({
   name,
   description,
+  wigPrice,
 }: {
   name: string;
   description?: string | null;
+  wigPrice?: number | string | null;
 }) {
   return (
     <section className="px-2 pt-5 pb-4">
@@ -59,6 +53,11 @@ function ProductInfo({
         <span className="font-semibold">אורך:</span> כ-40–45 ס&quot;מ (נופל מעל
         החזה ומתחת לכתפיים).
       </p>
+      {wigPrice && (
+        <p className="text-gray-700 text-sm leading-relaxed">
+          <span className="font-semibold">מחיר:</span> ₪{wigPrice}
+        </p>
+      )}
     </section>
   );
 }
@@ -77,10 +76,15 @@ export default async function WigDetailPage({
 
   return (
     <PageContainer className="p-4">
-      <ProductImage src={wig.imageUrl} alt={wig.name} wigId={wig.id} />
-      <ProductInfo name={wig.name} description={wig.description} />
+      <ProductImage src={wig.imageUrl} alt={wig.name} />
+      <ProductInfo
+        name={wig.name}
+        description={wig.description}
+        wigPrice={wig.price}
+      />
       <div className="h-36"></div>
-      <WigActionButtons wigId={wig.id} wigPrice={wig.price} />
+    
+      <WigActionButtons wigId={wig.id} />
     </PageContainer>
   );
 }

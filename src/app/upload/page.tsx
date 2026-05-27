@@ -25,11 +25,11 @@ export default async function UploadPage({ searchParams }: UploadPageProps) {
   }
 
   return (
-    <PageContainer className="p-4 h-[calc(100vh-2.5rem)] overflow-hidden flex flex-col">
+    <PageContainer className="p-4 h-[calc(100vh-2.5rem)] flex flex-col">
       <PageHeader title="תעלה תמונה של עצמך" backHref={`/wigs/${wigId}`} />
 
       <div className="flex-1 min-h-0">
-        <Suspense fallback={<div>Loading uploader...</div>}>
+        <Suspense fallback={<div className="h-full flex items-center justify-center">טוען את עמוד ההעלאה...</div>}>
           <UploadPageClient
             wigId={wigId}
             wigImageUrl={wig.imageUrl}
