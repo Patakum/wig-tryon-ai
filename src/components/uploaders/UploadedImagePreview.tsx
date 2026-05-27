@@ -2,12 +2,14 @@
 
 import { Button } from '@/src/components/ui/button';
 import CustomImage from '../ui/Image';
+import { cn } from '@/src/lib/utils';
 
 type UploadedImagePreviewProps = {
   imageUrl: string;
   alt?: string;
   width?: number;
   height?: number;
+  className?: string;
   showRemoveButton?: boolean;
   removeButtonLabel?: string;
   onRemove?: () => void;
@@ -16,13 +18,14 @@ type UploadedImagePreviewProps = {
 export default function UploadedImagePreview({
   imageUrl,
   alt = 'uploaded',
+  className,
   showRemoveButton = false,
   removeButtonLabel = 'Remove',
   onRemove,
 }: UploadedImagePreviewProps) {
   return (
-    <div className="relative">
-      <CustomImage src={imageUrl} alt={alt} />
+    <div className={cn('relative', className)}>
+      <CustomImage src={imageUrl} alt={alt} className='w-full h-full object-contain'/>
 
       {showRemoveButton ? (
         <Button

@@ -1,3 +1,4 @@
+import { cn } from '@/src/lib/utils';
 import Image from 'next/image';
 
 type ImageProps = {
@@ -25,7 +26,7 @@ export default function CustomImage({
       alt={alt}
       width={width}
       height={height}
-      className={`rounded-lg w-full h-48 object-cover ${className}`}
+      className={cn(`rounded-lg w-full  object-cover `, className)}
       unoptimized={unoptimized}
       fill={false}
       {...props}

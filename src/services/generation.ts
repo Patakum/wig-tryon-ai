@@ -1,9 +1,12 @@
 import OpenAI, { toFile } from 'openai';
+import sharp from 'sharp';
 import { prisma } from '@/src/lib/prisma';
 import { uploadGeneration } from '@/src/lib/cloudinary-utils';
 import { throwApiError } from '@/src/lib/api/errors';
 import { getWigOrThrow } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
+import { segmentHair } from '@/src/lib/replicate';
+import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
 
 function getOpenAiClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -65,14 +68,12 @@ export async function createFeedbackForGeneration(params: {
   });
 }
 
-export async function generateTryOn(params: {
+export async function createPendingGeneration(params: {
   photoId: string;
   wigId: string;
   viewerUserId: string | null;
 }) {
-  const openai = getOpenAiClient();
-
-  const [photo, wig] = await Promise.all([
+  const [photo] = await Promise.all([
     getPhotoForViewer(params.photoId, params.viewerUserId),
     getWigOrThrow(params.wigId),
   ]);
@@ -86,81 +87,135 @@ export async function generateTryOn(params: {
     },
   });
 
-  const [selfieResponse, wigResponse] = await Promise.all([
-    fetch(photo.imageUrl),
-    fetch(wig.imageUrl),
-  ]);
-
-  if (!selfieResponse.ok || !wigResponse.ok) {
-    await prisma.generation.update({
-      where: { id: generation.id },
-      data: { status: 'failed' },
-    });
-
-    throwApiError(
-      500,
-      'UPSTREAM_IMAGE_FETCH_FAILED',
-      'Failed to fetch images for generation.',
-    );
-  }
-
-  const [selfieBuffer, wigBuffer] = await Promise.all([
-    selfieResponse.arrayBuffer(),
-    wigResponse.arrayBuffer(),
-  ]);
-
-  const [selfieFile, wigFile] = await Promise.all([
-    toFile(Buffer.from(selfieBuffer), 'selfie.png', { type: 'image/png' }),
-    toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
-  ]);
-
-  const prompt = `
-    Replace ONLY the hair of the person in the first image with the hairstyle from the second image.
-
-    Do not change the face, skin, lighting, or identity.
-    
-    do not smooth skin, do not change face texture, do not alter identity
-
-    Keep every facial detail exactly the same.
-
-    Only modify the hair region.
-
-    Photorealistic, seamless blending.
-  `;
-  const response = await openai.images.edit({
-    // todo: consider using a custom-trained model if quality is not good enough
-   // use the new gpt image to have better performance 
-    model: 'gpt-image-1',
-    image: [selfieFile, wigFile],
-    prompt,
-    // todo: test different sizes and quality settings to find the best balance of quality, speed, and cost
-    quality:'low',
-    // quality: 'auto',
-    size: '1024x1024',
-  });
-
-  const base64 = response.data?.[0]?.b64_json;
-
-  if (!base64) {
-    await prisma.generation.update({
-      where: { id: generation.id },
-      data: { status: 'failed' },
-    });
-
-    throwApiError(500, 'OPENAI_EMPTY_IMAGE', 'OpenAI returned no image data.');
-  }
-
-  const { secureUrl: resultUrl } = await uploadGeneration(
-    `data:image/png;base64,${base64}`,
-  );
-
-  await prisma.generation.update({
-    where: { id: generation.id },
-    data: {
-      resultImageUrl: resultUrl,
-      status: 'completed',
-    },
-  });
-
   return { generationId: generation.id };
+}
+
+export async function runGeneration(generationId: string): Promise<void> {
+  const openai = getOpenAiClient();
+
+  const generation = await prisma.generation.findUnique({
+    where: { id: generationId },
+  });
+
+  if (!generation) {
+    throw new Error(`Generation not found: ${generationId}`);
+  }
+
+  const [photo, wig] = await Promise.all([
+    prisma.photo.findUnique({ where: { id: generation.photoId } }),
+    prisma.wig.findUnique({ where: { id: generation.wigId } }),
+  ]);
+
+  if (!photo || !wig) {
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: { status: 'failed' },
+    });
+    throw new Error('Photo or wig not found for generation');
+  }
+
+  try {
+    // Run hair segmentation in parallel with image fetching AND pre-build the
+    // geometric mask — all three are independent and can run concurrently.
+    // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is set.
+    const segmentationPromise = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL
+      ? segmentHair(photo.imageUrl).catch((err: unknown) => {
+          console.warn(
+            '[generation] Hair segmentation failed — falling back to geometric mask:',
+            err,
+          );
+          return null;
+        })
+      : Promise.resolve(null);
+
+    const [selfieResponse, wigResponse, maskUrl, geometricMaskBuffer] =
+      await Promise.all([
+        fetch(photo.imageUrl),
+        fetch(wig.imageUrl),
+        segmentationPromise,
+        buildGeometricHairMask(1024, 1024),
+      ]);
+
+    if (!selfieResponse.ok || !wigResponse.ok) {
+      throw new Error('Failed to fetch images for generation.');
+    }
+
+    const [selfieBuffer, wigBuffer] = await Promise.all([
+      selfieResponse.arrayBuffer(),
+      wigResponse.arrayBuffer(),
+    ]);
+
+    // Normalize selfie to 1024×1024 in parallel with fetching an AI mask (if any).
+    // OpenAI requires mask and image to be the exact same dimensions.
+    const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
+      sharp(Buffer.from(selfieBuffer))
+        .resize(1024, 1024, { fit: 'cover', position: 'top' })
+        .png()
+        .toBuffer(),
+      maskUrl
+        ? buildHairMask(maskUrl, 1024, 1024).catch((err: unknown) => {
+            console.warn('[generation] Failed to build AI hair mask:', err);
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const chosenMaskBuffer = aiMaskBuffer ?? geometricMaskBuffer;
+
+    // Convert all three inputs to File objects in parallel.
+    const [selfieFile, wigFile, maskFile] = await Promise.all([
+      toFile(normalizedSelfieBuffer, 'selfie.png', { type: 'image/png' }),
+      toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
+      toFile(chosenMaskBuffer, 'mask.png', { type: 'image/png' }),
+    ]);
+
+    const prompt = `Replace the hair in the masked area with the hairstyle from the second image.
+Keep the face, skin tone, lighting, and identity completely unchanged.
+Blend seamlessly. Photorealistic result.`;
+
+    const response = await openai.images.edit({
+      model: 'gpt-image-1.5',
+      image: [selfieFile, wigFile],
+      mask: maskFile,
+      prompt,
+      quality: 'medium',
+      size: '1024x1024',
+      // jpeg is faster for OpenAI to produce and smaller to upload to Cloudinary
+      output_format: 'jpeg',
+    });
+
+    const base64 = response.data?.[0]?.b64_json;
+
+    if (!base64) {
+      throw new Error('OpenAI returned no image data.');
+    }
+
+    const { secureUrl: resultUrl } = await uploadGeneration(
+      `data:image/jpeg;base64,${base64}`,
+    );
+
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: {
+        resultImageUrl: resultUrl,
+        status: 'completed',
+      },
+    });
+  } catch (err) {
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: { status: 'failed' },
+    });
+    throw err;
+  }
+}
+
+export async function generateTryOn(params: {
+  photoId: string;
+  wigId: string;
+  viewerUserId: string | null;
+}) {
+  const { generationId } = await createPendingGeneration(params);
+  await runGeneration(generationId);
+  return { generationId };
 }

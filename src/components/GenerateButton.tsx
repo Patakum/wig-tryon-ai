@@ -10,10 +10,7 @@ type GenerateButtonProps = {
   wigId: string;
 };
 
-export default function GenerateButton({
-  photoId,
-  wigId,
-}: GenerateButtonProps) {
+export default function GenerateButton({ photoId, wigId }: GenerateButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +32,6 @@ export default function GenerateButton({
       } else {
         setError('Generation failed');
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -49,7 +45,7 @@ export default function GenerateButton({
         size="lg"
         className="w-full"
       >
-        {loading ? 'Generating...' : 'Generate'}
+        {loading ? 'מכין...' : 'תראה לי את עצמי עם הפאה!'}
       </Button>
     </div>
   );

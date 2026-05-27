@@ -17,26 +17,24 @@ function WigPreview({ imageUrl }: { imageUrl: string }) {
   return (
     <div
       className={cn(
-        'overflow-hidden',
-        'transition-[max-width,opacity] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
-        'max-w-175 opacity-100',
+        'h-full flex flex-col overflow-hidden',
+        'transition-opacity duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
+        'opacity-100',
       )}
     >
+      <p className="mb-2 text-sm font-medium shrink-0">פאה שנבחרה</p>
       <div
         className={cn(
-          'w-full h-full',
+          'flex-1 min-h-0 overflow-hidden',
           'transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
           'translate-x-0',
         )}
       >
-        <p className="mb-2 text-sm font-medium text-muted-foreground">
-          פאה שנבחרה
-        </p>
         <CustomImage
           src={imageUrl}
           alt="Selected wig"
           className={cn(
-            'object-cover',
+            'w-full h-full object-contain',
             'transition-[transform,filter] duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]',
             'scale-100 blur-0',
           )}
@@ -86,7 +84,6 @@ export default function UploadPageClient({
       upload.stage === 'file-selected' ? upload.previewUrl : null;
     setUpload({ stage: 'uploaded', photoId: newPhotoId, previewUrl });
     const params = new URLSearchParams(searchParams.toString());
-    params.set('photoId', newPhotoId);
     router.replace(`/upload?${params.toString()}`);
   };
 
@@ -94,17 +91,23 @@ export default function UploadPageClient({
   const previewUrl = upload.stage !== 'idle' ? upload.previewUrl : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-center gap-6 overflow-hidden">
+    <div className="h-full flex flex-col gap-4">
+      <div className="flex-1 min-h-0 flex flex-col gap-6 overflow-hidden">
+        <div className="flex-1 min-h-0">
           <SelfieUploader
             previewUrl={previewUrl}
             onFileReady={handleFileReady}
             onRemove={handleRemove}
           />
-        {wigVisible && <WigPreview imageUrl={wigImageUrl} />}
+        </div>
+        {wigVisible && (
+          <div className="flex-1 min-h-0">
+            <WigPreview imageUrl={wigImageUrl} />
+          </div>
+        )}
       </div>
 
-      <div>
+      <div className="shrink-0">
         {upload.stage === 'file-selected' && (
           <SelfieSubmitButton
             selectedFile={upload.file}
@@ -113,7 +116,10 @@ export default function UploadPageClient({
           />
         )}
         {upload.stage === 'uploaded' && (
-          <GenerateButton photoId={upload.photoId} wigId={wigId} />
+          <GenerateButton
+            photoId={upload.photoId}
+            wigId={wigId}
+          />
         )}
       </div>
     </div>

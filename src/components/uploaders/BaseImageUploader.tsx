@@ -26,7 +26,7 @@ type BaseImageUploaderProps<TResult> = {
 export default function BaseImageUploader<TResult>({
   placeholder = 'גרור ושחרר או לחץ כדי להעלות תמונה',
   maxSizeMB = 10,
-  dropzoneClassName = 'cursor-pointer border-2 border-dashed p-10 text-center',
+  dropzoneClassName = 'cursor-pointer h-full w-full bg-[#D9D9D9] text-center rounded-lg border-2 border-dashed border-muted flex flex-col items-center justify-center gap-2 p-4',
   showDropzone = true,
   validateFile,
   preprocessFile,
@@ -106,13 +106,9 @@ export default function BaseImageUploader<TResult>({
   return (
     <>
       {showDropzone && (
-        <div>
-          <div>
-            <div {...getRootProps()} className={dropzoneClassName}>
-              <input {...getInputProps()} />
-              <p>{placeholder}</p>
-            </div>
-          </div>
+        <div {...getRootProps()} className={dropzoneClassName}>
+          <input {...getInputProps()} />
+          <p>{placeholder}</p>
 
           {errorMessage && (
             <p className="mt-2 text-sm text-red-600">{errorMessage}</p>

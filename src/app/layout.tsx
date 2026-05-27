@@ -30,11 +30,9 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body
-        className={`${josefinSans.variable} ${roboto.variable} antialiased pt-10`}
+        className={`${josefinSans.variable} ${roboto.variable} antialiased `}
       >
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

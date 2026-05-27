@@ -2,10 +2,11 @@
 
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { CircleUser, LogOutIcon } from 'lucide-react';
+import IconButton from './IconButton';
 
 export default function AuthButton({
   className,
-  size,
+  size = 20,
 }: {
   className?: string;
   size?: number;
@@ -14,15 +15,23 @@ export default function AuthButton({
 
   if (session) {
     return (
-      <button onClick={() => signOut()} className={className}>
+      <IconButton
+        label="Sign out"
+        className={className}
+        onClick={() => signOut()}
+      >
         <LogOutIcon size={size} />
-      </button>
+      </IconButton>
     );
   }
 
   return (
-    <button onClick={() => signIn('google')} className={className}>
+    <IconButton
+      label="Sign in with Google"
+      className={className}
+      onClick={() => signIn('google')}
+    >
       <CircleUser size={size} />
-    </button>
+    </IconButton>
   );
 }

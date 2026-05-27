@@ -1,37 +1,19 @@
-'use client';
+import CatalogHeader from './CatalogHeader';
+import WigGrid from '@/src/components/WigGrid';
+import Footer from '@/src/components/Footer';
+import { getWigs } from '@/src/services/wig';
+import PageContainer from '@/src/components/PageContainer';
 
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import WigCard from '@/src/components/WigCard';
-import { useRouter } from 'next/navigation';
-import { Wig } from '@/src/types';
-
-export default function CatalogPage() {
-  const [wigs, setWigs] = useState<Wig[]>([]);
-  const router = useRouter();
-
-  useEffect(() => {
-    const fetchWigs = async () => {
-      const res = await axios.get('/api/wigs');
-      setWigs(res.data);
-    };
-
-    fetchWigs();
-  }, []);
-
-  const handleSelect = (wigId: string) => {
-    router.push(`/upload?wigId=${wigId}`);
-  };
+export default async function CatalogPage() {
+  const wigs = await getWigs();
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl mb-4">בחר פאה</h1>
-
-      <div className="grid grid-cols-2 gap-4">
-        {wigs.map((wig) => (
-          <WigCard key={wig.id} wig={wig} onSelect={handleSelect} />
-        ))}
+    <PageContainer>
+      <CatalogHeader />
+      <div className="p-3">
+        <WigGrid wigs={wigs} />
       </div>
-    </div>
+      <Footer />
+    </PageContainer>
   );
 }

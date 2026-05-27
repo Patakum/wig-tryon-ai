@@ -1,7 +1,11 @@
 import { notFound, redirect } from 'next/navigation';
-import { createWhatsAppLink } from '@/src/lib/whatsapp';
 import { prisma } from '@/src/lib/prisma';
-import Feedback from '@/src/components/Feedback';
+import PageContainer from '@/src/components/PageContainer';
+import PageHeader from '@/src/components/PageHeader';
+import { getWig, getLatestWigs } from '@/src/services/wig';
+import { getPhoto } from '@/src/services/photo';
+import ResultPageClient from './ResultPageClient';
+import ResultLoadingClient from './ResultLoadingClient';
 
 type ResultPageProps = {
   searchParams: Promise<{
@@ -25,62 +29,46 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
     notFound();
   }
 
+  const wigId = generation.wigId;
+  const [wig, photo, latestWigs] = await Promise.all([
+    getWig(wigId),
+    getPhoto(generation.photoId),
+    getLatestWigs(12),
+  ]);
+
+  const wigName = wig?.name ?? 'Selected wig';
+  const wigImageUrl = wig?.imageUrl ?? '';
+  const wigImages = latestWigs.map((w) => w.imageUrl);
+
   if (!generation.resultImageUrl) {
     return (
-      <div className="p-4">
-        <h1 className="text-xl font-semibold">Your Result</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your image is still being generated. Please refresh this page in a few
-          seconds.
-        </p>
-      </div>
+      <PageContainer className="p-4">
+        <PageHeader title="יוצרים את הפאה שלך..." backHref={`/upload?wigId=${wigId}`} />
+        <ResultLoadingClient
+          generationId={generation.id}
+          wigId={wigId}
+          wigName={wigName}
+          wigImageUrl={wigImageUrl}
+          photoImageUrl={photo.imageUrl}
+          wigImages={wigImages}
+        />
+      </PageContainer>
     );
   }
 
-  const wigId = generation.wigId;
-  const wig = await prisma.wig.findUnique({
-    where: { id: wigId },
-  });
-
-  const wigName = wig?.name || 'Selected wig';
-  const wigImageUrl = wig?.imageUrl || '';
   const whatsappPhone = process.env.WHATSAPP_PHONE;
 
-  const whatsappLink = whatsappPhone
-    ? createWhatsAppLink({
-        phone: whatsappPhone,
-        message: `Hi, I chose the wig \"${wigName}\". Wig image: ${wigImageUrl}. Generated result: ${generation.resultImageUrl}`,
-      })
-    : null;
-
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-semibold">Your Result</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Selected wig: {wigName}
-      </p>
-
-      <img
-        src={generation.resultImageUrl}
-        alt="result"
-        className="mt-4 rounded-xl"
+    <PageContainer className="p-4">
+      <PageHeader title="התוצאה שלך" backHref={`upload?wigId=${wigId}`} />
+      <ResultPageClient
+        generationId={generation.id}
+        wigName={wigName}
+        wigImageUrl={wigImageUrl}
+        photoImageUrl={photo.imageUrl}
+        resultImageUrl={generation.resultImageUrl}
+        whatsappPhone={whatsappPhone}
       />
-
-      {whatsappLink ? (
-        <a
-          href={whatsappLink}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          Send to WhatsApp
-        </a>
-      ) : (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Set WHATSAPP_PHONE in your environment to enable WhatsApp sharing.
-        </p>
-      )}
-      <Feedback id={id} />
-    </div>
+    </PageContainer>
   );
 }
