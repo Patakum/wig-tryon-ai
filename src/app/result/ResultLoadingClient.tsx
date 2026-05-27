@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { cn } from '@/src/lib/utils';
 import WigMarquee from '@/src/components/generationLoader/WigMarquee';
 import { Button } from '@/src/components/ui/button';
@@ -35,9 +34,6 @@ const TOTAL_SECONDS = 65;
 export default function ResultLoadingClient({
   generationId,
   wigId,
-  wigName,
-  wigImageUrl,
-  photoImageUrl,
   wigImages,
 }: Props) {
   const router = useRouter();
@@ -78,8 +74,7 @@ export default function ResultLoadingClient({
           clearInterval(timerInterval);
           clearInterval(tipInterval);
           clearInterval(pollInterval);
-          setDone(true);
-          setTimeout(() => router.refresh(), 600);
+          window.location.href = `/result?id=${generationId}`;
         } else if (data.status === 'failed') {
           clearInterval(timerInterval);
           clearInterval(tipInterval);
@@ -88,6 +83,7 @@ export default function ResultLoadingClient({
         }
       } catch {
         // ignore transient network errors, poll again next tick
+        console.error('Error polling generation status');
       }
     }, 3500);
 

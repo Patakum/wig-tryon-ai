@@ -24,7 +24,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
   const generation = await prisma.generation.findUnique({
     where: { id },
   });
-
+console.log('Fetched generation:', generation);
   if (!generation) {
     notFound();
   }
