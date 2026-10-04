@@ -1,6 +1,6 @@
 'use client';
 
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { authClient } from '@/src/lib/auth-client';
 import { CircleUser, LogOutIcon } from 'lucide-react';
 import IconButton from './IconButton';
 
@@ -11,14 +11,14 @@ export default function AuthButton({
   className?: string;
   size?: number;
 }) {
-  const { data: session } = useSession();
+  const { data: session } = authClient.useSession();
 
   if (session) {
     return (
       <IconButton
         label="Sign out"
         className={className}
-        onClick={() => signOut()}
+        onClick={() => authClient.signOut()}
       >
         <LogOutIcon size={size} />
       </IconButton>
@@ -29,7 +29,7 @@ export default function AuthButton({
     <IconButton
       label="Sign in with Google"
       className={className}
-      onClick={() => signIn('google')}
+      onClick={() => authClient.signIn.social({ provider: 'google' })}
     >
       <CircleUser size={size} />
     </IconButton>

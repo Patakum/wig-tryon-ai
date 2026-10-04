@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/src/lib/auth';
+import { getSession } from '@/src/lib/auth';
 import { prisma } from '@/src/lib/prisma';
 import { throwApiError } from '@/src/lib/api/errors';
 
@@ -31,7 +30,7 @@ async function resolveUserByEmail(email: string): Promise<SessionUser | null> {
 }
 
 export async function getOptionalUserId(): Promise<string | null> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user?.email) {
     return null;
@@ -42,7 +41,7 @@ export async function getOptionalUserId(): Promise<string | null> {
 }
 
 export async function requireSessionUser(): Promise<SessionUser> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user?.email) {
     throwApiError(401, 'UNAUTHORIZED', 'Unauthorized');
