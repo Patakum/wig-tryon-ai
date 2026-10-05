@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
@@ -12,12 +12,19 @@ type CompareSliderProps = {
   afterUrl: string;
 };
 
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function CompareSlider({
   beforeUrl,
   afterUrl,
 }: CompareSliderProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 
   if (!mounted) return <Skeleton className="h-100 w-full rounded-xl" />;
 

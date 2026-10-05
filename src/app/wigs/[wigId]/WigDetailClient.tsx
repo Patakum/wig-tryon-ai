@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import Logo from '@/src/components/Logo';
 
 export default function WigDetailClient() {

@@ -1,11 +1,9 @@
 'use client';
 
 import {
-  useActionState,
-  useEffect,
   useRef,
   useState,
-  startTransition,
+  useTransition,
 } from 'react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
@@ -15,29 +13,28 @@ import { uploadWigAction } from '@/src/actions/actions';
 import { initialWigState } from '@/src/actions/types';
 
 export function WigFormClient() {
-  const [state, formAction, isPending] = useActionState(
-    uploadWigAction,
-    initialWigState,
-  );
+  const [state, setState] = useState(initialWigState);
+  const [isPending, startTransition] = useTransition();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    if (state.success) {
-      formRef.current?.reset();
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setSelectedFile(null);
-      setPreviewUrl(null);
-    }
-  }, [state.success]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedFile) return;
     const formData = new FormData(e.currentTarget);
     formData.append('file', selectedFile);
-    startTransition(() => formAction(formData));
+    startTransition(async () => {
+      const nextState = await uploadWigAction(state, formData);
+      setState(nextState);
+
+      if (nextState.success) {
+        formRef.current?.reset();
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setSelectedFile(null);
+        setPreviewUrl(null);
+      }
+    });
   };
 
   return (

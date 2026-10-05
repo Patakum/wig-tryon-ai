@@ -40,7 +40,7 @@ export default function ResultLoadingClient({
   const [elapsed, setElapsed] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [tipVisible, setTipVisible] = useState(true);
-  const [done, setDone] = useState(false);
+  const done = false;
   const [failed, setFailed] = useState(false);
   const startRef = useRef<number>(0);
 

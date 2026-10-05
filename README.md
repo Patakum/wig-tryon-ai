@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wig Try-On AI
 
-## Getting Started
+A mobile-first Hebrew/RTL wig catalog and AI try-on app built with Next.js, Better Auth, Prisma/PostgreSQL, Cloudinary, and OpenAI image generation.
 
-First, run the development server:
+## Local development
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Requirements: Node.js 20.9 or newer and pnpm. From the repository root:
+
+```powershell
+corepack enable
+pnpm install --frozen-lockfile
+Copy-Item .env.example .env
+pnpm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>. The `.env.example` file lists the variable names; put credentials only in the ignored local `.env` file or your deployment provider's secret settings. Never commit `.env`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`DATABASE_URL` must point to a PostgreSQL development database. For a fresh, disposable database only, review the current schema and then synchronize it with:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+pnpm exec prisma db push
+```
 
-## Learn More
+Do not point schema-sync commands at production. The Better Auth branch changes the auth tables and `User.emailVerified` type compared with the earlier NextAuth schema; production schema migration needs a reviewed migration plan.
 
-To learn more about Next.js, take a look at the following resources:
+## Environment variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | PostgreSQL connection string for Prisma |
+| `BETTER_AUTH_SECRET` | Yes for auth | Unique Better Auth signing/encryption secret; keep it server-side |
+| `BETTER_AUTH_URL` | Yes for auth | Canonical app origin, e.g. local `http://localhost:3000` |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Better Auth client base URL; defaults to localhost in the client |
+| `GOOGLE_CLIENT_ID` | For Google sign-in | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | For Google sign-in | Google OAuth client secret |
+| `CLOUDINARY_CLOUD_NAME` | Yes for uploads | Cloudinary account name |
+| `CLOUDINARY_API_KEY` | Yes for uploads | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Yes for uploads | Cloudinary API secret |
+| `OPENAI_API_KEY` | Yes for try-on | OpenAI image generation |
+| `REPLICATE_API_TOKEN` | Conditional | Required only when AI hair segmentation is enabled |
+| `REPLICATE_HAIR_SEGMENTATION_MODEL` | Optional | Full `owner/model:version` identifier; enables Replicate segmentation |
+| `WHATSAPP_PHONE` | Optional | Business WhatsApp number used by result contact links |
+| `NEXT_PUBLIC_ALLOWED_IMAGE_HOSTS` | Optional | Comma-separated extra remote image hostnames |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The values in `.env.example` are intentionally blank or local-only placeholders. Create real credentials in the relevant provider consoles; do not add them to source control.
 
-## Deploy on Vercel
+## Main scripts and checks
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+pnpm run dev
+pnpm run build
+pnpm run typecheck
+pnpm run lint
+pnpm test
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The test suite uses mocked Prisma and image providers, so unit tests do not need database credentials and cannot make billable provider calls. CI provisions an isolated PostgreSQL test database for future integration tests; do not point tests at production data. Copy `.env.test.example` to `.env.test` only when configuring local integration tests, and use a disposable test database. The production build uses Webpack because the checked-in Turbopack build panics on this Windows checkout's non-ASCII path. See [docs/BASELINE_STATUS.md](./docs/BASELINE_STATUS.md) for baseline results and [docs/GENERATION_QUALITY_EVALUATION.md](./docs/GENERATION_QUALITY_EVALUATION.md) for the manual, consented real-provider quality review.
+
+## Architecture
+
+- App Router pages and API handlers live under `src/app/`.
+- Business logic is in `src/services/` (`photo.ts`, `wig.ts`, `generation.ts`).
+- Better Auth is configured in `src/lib/auth.ts`; the API handler is `src/app/api/auth/[...all]/route.ts`.
+- Prisma uses the schema in `prisma/schema.prisma` and the singleton in `src/lib/prisma.ts`.
+- Cloudinary integration is centralized in `src/lib/cloudinary.ts` and `src/lib/cloudinary-utils.ts`.
+- Image generation uses OpenAI; optional hair segmentation uses Replicate via `src/lib/replicate.ts`.
+
+## Current baseline
+
+The current working branch is `better-auth`. See [docs/BASELINE_STATUS.md](./docs/BASELINE_STATUS.md) for branch and deployment evidence, local build/type/lint results, feature-by-feature roadmap status, and remaining launch gaps. The production roadmap source document is `Wig_Try_On_Production_Roadmap.docx`.
