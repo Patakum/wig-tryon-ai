@@ -8,6 +8,17 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // face-api.js / node-fetch reference Node-only modules that browsers never use
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        encoding: false,
+      };
+    }
+    return config;
+  },
   images: {
     remotePatterns: (
       process.env.NEXT_PUBLIC_ALLOWED_IMAGE_HOSTS ||
