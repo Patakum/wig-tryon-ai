@@ -10,12 +10,16 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    },
-  },
+  baseURL: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+  socialProviders:
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {},
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -26,11 +30,11 @@ export const auth = betterAuth({
     window: 60,
     max: 100,
   },
-  advanced:{
+  advanced: {
     database: {
-      generateId:"uuid"
-    }
-  },  
+      generateId: 'uuid',
+    },
+  },
   user: {
     additionalFields: {
       role: {
@@ -45,7 +49,12 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [admin(), twoFactor(), passkey(), nextCookies()],
+  plugins: [
+    admin({ defaultRole: 'user', adminRoles: ['admin'] }),
+    twoFactor(),
+    passkey(),
+    nextCookies(),
+  ],
 });
 
 export async function getSession() {

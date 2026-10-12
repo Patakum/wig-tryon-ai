@@ -15,6 +15,9 @@ out
 dist
 
 prisma/migrations
+!prisma/migrations/
+!prisma/migrations/20261007123000_add_guest_session_ownership/
+!prisma/migrations/20261007123000_add_guest_session_ownership/migration.sql
 
 # testing
 /coverage

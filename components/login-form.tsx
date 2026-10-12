@@ -1,5 +1,6 @@
 'use client';
 
+import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -22,61 +23,86 @@ import { cn } from '@/src/lib/utils';
 
 export function LoginForm({
   className,
+  returnTo = '/catalog',
   ...props
-}: React.ComponentProps<'div'>) {
+}: React.ComponentProps<'div'> & { returnTo?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
+    const normalizedEmail = email.trim();
 
-    const { error } = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: '/catalog',
-    });
-
-    setIsSubmitting(false);
-
-    if (error) {
-      setError(error.message ?? 'Unable to sign in.');
+    if (!normalizedEmail || !password) {
+      setError('אנא הזן אימייל וסיסמה');
       return;
     }
 
-    router.push('/catalog');
-    router.refresh();
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await authClient.signIn.email({
+        email: normalizedEmail,
+        password,
+        callbackURL: returnTo,
+      });
+
+      if (error) {
+        setError(error.message ?? 'לא הצלחת להתחבר');
+        return;
+      }
+
+      router.push(returnTo);
+      router.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'לא הצלחת להתחבר');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function handleGoogleSignIn() {
     setError(null);
-    await authClient.signIn.social({
-      provider: 'google',
-      callbackURL: '/catalog',
-    });
+    try {
+      const { error } = await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: returnTo,
+      });
+      if (error) {
+        setError(error.message ?? 'לא הצלחת להתחבר עם Google.');
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'לא הצלחת להתחבר עם Google.',
+      );
+    }
   }
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
+          <CardTitle>התחבר כמשתמש קיים</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            הזן את האימייל שלך כדי להתחבר לחשבון הקיים שלך
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="email">אימייל</FieldLabel>
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="m@example.com"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -84,26 +110,42 @@ export function LoginForm({
                 />
               </Field>
               <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                <div className="w-full flex justify-between items-center">
+                  <FieldLabel htmlFor="password"> סיסמה </FieldLabel>
                   <a
                     href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                    className="text-gray-500 hover:underline"
                   >
-                    Forgot your password?
+                    שחכת את הסיסמה?
                   </a>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </Field>
               <Field>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Logging in...' : 'Login'}
+                  {isSubmitting ? 'מתחבר...' : 'התחבר'}
                 </Button>
                 <Button
                   variant="outline"
@@ -111,7 +153,7 @@ export function LoginForm({
                   disabled={isSubmitting}
                   onClick={handleGoogleSignIn}
                 >
-                  Login with Google
+                  התחבר עם Google
                 </Button>
                 {error ? (
                   <FieldDescription className="text-center text-red-600">
@@ -119,7 +161,10 @@ export function LoginForm({
                   </FieldDescription>
                 ) : null}
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="/signup">Sign up</a>
+                  אין לך חשבון?{' '}
+                  <a href={`/signup?next=${encodeURIComponent(returnTo)}`}>
+                    Sign up
+                  </a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

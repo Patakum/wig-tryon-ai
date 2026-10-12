@@ -24,7 +24,7 @@ export default function ResultPageClient({
   const whatsappLink = whatsappPhone
     ? createWhatsAppLink({
         phone: whatsappPhone,
-        message: `Hi, I chose the wig "${wigName}". Wig image: ${wigImageUrl}. Generated result: ${resultImageUrl}`,
+          message: `שלום, בחרתי את הפאה "${wigName}".\n תמונת הפאה : ${wigImageUrl}`,
       })
     : null;
 
@@ -56,7 +56,7 @@ export default function ResultPageClient({
         </a>
       ) : (
         <p className="mt-4 text-sm text-muted-foreground">
-          Set WHATSAPP_PHONE in your environment to enable WhatsApp sharing.
+          מספר WhatsApp לא מוגדר.
         </p>
       )}
 

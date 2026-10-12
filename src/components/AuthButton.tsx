@@ -1,8 +1,9 @@
 'use client';
 
 import { authClient } from '@/src/lib/auth-client';
-import { CircleUser, LogOutIcon } from 'lucide-react';
+import { CircleUser, LoaderIcon, LogOutIcon } from 'lucide-react';
 import IconButton from './IconButton';
+import Link from 'next/link';
 
 export default function AuthButton({
   className,
@@ -11,7 +12,15 @@ export default function AuthButton({
   className?: string;
   size?: number;
 }) {
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
+
+  if (isPending) {
+    return (
+      <IconButton label="Loading..." className={className}>
+        <LoaderIcon size={size} className="animate-spin" />;
+      </IconButton>
+    );
+  }
 
   if (session) {
     return (
@@ -26,12 +35,10 @@ export default function AuthButton({
   }
 
   return (
-    <IconButton
-      label="Sign in with Google"
-      className={className}
-      onClick={() => authClient.signIn.social({ provider: 'google' })}
-    >
-      <CircleUser size={size} />
+    <IconButton label="Sign in with Google" className={className}>
+      <Link href="/login">
+        <CircleUser size={size} />
+      </Link>
     </IconButton>
   );
 }

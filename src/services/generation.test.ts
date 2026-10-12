@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     wig: { findUnique: vi.fn() },
     generation: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
     },
     feedback: { create: vi.fn() },
@@ -31,20 +32,24 @@ vi.mock('@/src/lib/cloudinary-utils', () => ({
 
 import {
   createFeedbackForGeneration,
+  getGenerationCreationAccess,
   createPendingGeneration,
   getGenerationForViewer,
 } from '@/src/services/generation';
 import { getPhotoForViewer } from '@/src/services/photo';
+import type { ViewerIdentity } from '@/src/types/viewer';
 
 const photo = {
   id: 'photo-1',
   userId: 'customer-a',
+  guestSessionId: null,
   imageUrl: 'https://images.example/selfie.jpg',
 };
 
 const generation = {
   id: 'generation-1',
   userId: 'customer-a',
+  guestSessionId: null,
   photoId: 'photo-1',
   wigId: 'wig-1',
   status: 'completed',
@@ -58,41 +63,87 @@ describe('photo ownership', () => {
   it('returns an owned photo', async () => {
     mocks.prisma.photo.findUnique.mockResolvedValue(photo);
 
-    await expect(getPhotoForViewer('photo-1', 'customer-a')).resolves.toEqual(
-      photo,
-    );
+    await expect(
+      getPhotoForViewer('photo-1', {
+        userId: 'customer-a',
+        guestSessionId: null,
+      }),
+    ).resolves.toEqual(photo);
   });
 
   it('rejects another customer from reading a photo', async () => {
     mocks.prisma.photo.findUnique.mockResolvedValue(photo);
 
     await expect(
-      getPhotoForViewer('photo-1', 'customer-b'),
+      getPhotoForViewer('photo-1', {
+        userId: 'customer-b',
+        guestSessionId: null,
+      }),
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
   });
 
-  it('allows a guest to read only an unowned guest photo', async () => {
+  it('allows a guest to read only a photo bound to the same guest session', async () => {
     mocks.prisma.photo.findUnique.mockResolvedValue({
       ...photo,
       userId: null,
+      guestSessionId: 'guest-a',
     });
 
-    await expect(getPhotoForViewer('photo-1', null)).resolves.toMatchObject({
-      userId: null,
-    });
-
-    mocks.prisma.photo.findUnique.mockResolvedValue(photo);
     await expect(
-      getPhotoForViewer('photo-1', null),
+      getPhotoForViewer('photo-1', {
+        userId: null,
+        guestSessionId: 'guest-a',
+      }),
+    ).resolves.toMatchObject({ guestSessionId: 'guest-a' });
+
+    mocks.prisma.photo.findUnique.mockResolvedValue({
+      ...photo,
+      userId: null,
+      guestSessionId: 'guest-a',
+    });
+    await expect(
+      getPhotoForViewer('photo-1', {
+        userId: null,
+        guestSessionId: 'guest-b',
+      }),
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+  });
+
+  it('requires sign-in to read a customer photo', async () => {
+    mocks.prisma.photo.findUnique.mockResolvedValue(photo);
+
+    await expect(
+      getPhotoForViewer('photo-1', {
+        userId: null,
+        guestSessionId: 'guest-a',
+      }),
+    ).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
   });
 
   it('returns not found for an unknown photo', async () => {
     mocks.prisma.photo.findUnique.mockResolvedValue(null);
 
     await expect(
-      getPhotoForViewer('missing-photo', null),
+      getPhotoForViewer('missing-photo', {
+        userId: null,
+        guestSessionId: null,
+      }),
     ).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
+  });
+
+  it('rejects legacy photos without an owner', async () => {
+    mocks.prisma.photo.findUnique.mockResolvedValue({
+      ...photo,
+      userId: null,
+      guestSessionId: null,
+    });
+
+    await expect(
+      getPhotoForViewer('photo-1', {
+        userId: null,
+        guestSessionId: 'guest-a',
+      }),
+    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
   });
 });
 
@@ -105,7 +156,10 @@ describe('generation ownership and setup', () => {
     mocks.prisma.generation.findUnique.mockResolvedValue(generation);
 
     await expect(
-      getGenerationForViewer('generation-1', 'customer-a'),
+      getGenerationForViewer('generation-1', {
+        userId: 'customer-a',
+        guestSessionId: null,
+      }),
     ).resolves.toEqual(generation);
   });
 
@@ -113,7 +167,10 @@ describe('generation ownership and setup', () => {
     mocks.prisma.generation.findUnique.mockResolvedValue(generation);
 
     await expect(
-      getGenerationForViewer('generation-1', 'customer-b'),
+      getGenerationForViewer('generation-1', {
+        userId: 'customer-b',
+        guestSessionId: null,
+      }),
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
   });
 
@@ -125,7 +182,7 @@ describe('generation ownership and setup', () => {
       createPendingGeneration({
         photoId: 'photo-1',
         wigId: 'wig-1',
-        viewerUserId: 'customer-b',
+        viewer: { userId: 'customer-b', guestSessionId: null },
       }),
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
 
@@ -139,6 +196,7 @@ describe('generation ownership and setup', () => {
       createFeedbackForGeneration({
         generationId: 'generation-1',
         userId: 'customer-b',
+        viewer: { userId: 'customer-b', guestSessionId: null },
         message: 'Feedback',
       }),
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
@@ -155,13 +213,14 @@ describe('generation ownership and setup', () => {
       createPendingGeneration({
         photoId: 'photo-1',
         wigId: 'wig-1',
-        viewerUserId: 'customer-a',
+        viewer: { userId: 'customer-a', guestSessionId: null },
       }),
     ).resolves.toEqual({ generationId: 'generation-2' });
 
     expect(mocks.prisma.generation.create).toHaveBeenCalledWith({
       data: {
         userId: 'customer-a',
+        guestSessionId: null,
         photoId: 'photo-1',
         wigId: 'wig-1',
         status: 'pending',
@@ -170,5 +229,96 @@ describe('generation ownership and setup', () => {
     expect(mocks.openAiEdit).not.toHaveBeenCalled();
     expect(mocks.segmentHair).not.toHaveBeenCalled();
     expect(mocks.uploadGeneration).not.toHaveBeenCalled();
+  });
+
+  it('preserves guest ownership when creating a guest generation', async () => {
+    const viewer: ViewerIdentity = {
+      userId: null,
+      guestSessionId: 'guest-a',
+    };
+    mocks.prisma.photo.findUnique.mockResolvedValue({
+      ...photo,
+      userId: null,
+      guestSessionId: 'guest-a',
+    });
+    mocks.prisma.wig.findUnique.mockResolvedValue({ id: 'wig-1' });
+    mocks.prisma.generation.findFirst.mockResolvedValue(null);
+    mocks.prisma.generation.create.mockResolvedValue({ id: 'generation-2' });
+
+    await createPendingGeneration({
+      photoId: 'photo-1',
+      wigId: 'wig-1',
+      viewer,
+    });
+
+    expect(mocks.prisma.generation.create).toHaveBeenCalledWith({
+      data: {
+        userId: null,
+        guestSessionId: 'guest-a',
+        photoId: 'photo-1',
+        wigId: 'wig-1',
+        status: 'pending',
+      },
+    });
+  });
+
+  it('rejects a second pending generation from the same guest browser', async () => {
+    const viewer: ViewerIdentity = {
+      userId: null,
+      guestSessionId: 'guest-a',
+    };
+    mocks.prisma.photo.findUnique.mockResolvedValue({
+      ...photo,
+      userId: null,
+      guestSessionId: 'guest-a',
+    });
+    mocks.prisma.wig.findUnique.mockResolvedValue({ id: 'wig-1' });
+    mocks.prisma.generation.findFirst.mockResolvedValue({
+      id: 'generation-1',
+      status: 'completed',
+    });
+
+    await expect(
+      createPendingGeneration({
+        photoId: 'photo-1',
+        wigId: 'wig-1',
+        viewer,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'GENERATION_LOGIN_REQUIRED',
+    });
+
+    expect(mocks.prisma.generation.create).not.toHaveBeenCalled();
+  });
+
+  it('returns login requirement for a guest who already generated once', async () => {
+    mocks.prisma.generation.findFirst.mockResolvedValue({ id: 'generation-1' });
+
+    await expect(
+      getGenerationCreationAccess({
+        userId: null,
+        guestSessionId: 'guest-a',
+      }),
+    ).resolves.toEqual({
+      canCreateGeneration: false,
+      requiresLoginToGenerateAgain: true,
+      message: 'You already used your guest generation. Sign in to generate again.',
+    });
+  });
+
+  it('returns a pending-generation message for signed-in users', async () => {
+    mocks.prisma.generation.findFirst.mockResolvedValue({ id: 'generation-1' });
+
+    await expect(
+      getGenerationCreationAccess({
+        userId: 'customer-a',
+        guestSessionId: null,
+      }),
+    ).resolves.toEqual({
+      canCreateGeneration: false,
+      requiresLoginToGenerateAgain: false,
+      message: 'You already have a generation in progress.',
+    });
   });
 });

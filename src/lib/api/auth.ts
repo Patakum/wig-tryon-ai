@@ -1,6 +1,14 @@
+import { cookies } from 'next/headers';
 import { getSession } from '@/src/lib/auth';
 import { prisma } from '@/src/lib/prisma';
 import { throwApiError } from '@/src/lib/api/errors';
+import {
+  createGuestSession,
+  findGuestSession,
+  GUEST_SESSION_COOKIE,
+  GUEST_SESSION_MAX_AGE,
+} from '@/src/services/guest-session';
+import type { ViewerIdentity } from '@/src/types/viewer';
 
 export type SessionUser = {
   id: string;
@@ -8,17 +16,25 @@ export type SessionUser = {
   role: string;
 };
 
-async function resolveUserByEmail(email: string): Promise<SessionUser | null> {
+async function getCurrentUser(): Promise<SessionUser | null> {
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return null;
+  }
+
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { id: session.user.id },
     select: {
       id: true,
       email: true,
       role: true,
+      banned: true,
+      deletedAt: true,
     },
   });
 
-  if (!user?.email) {
+  if (!user || user.banned || user.deletedAt || !user.email) {
     return null;
   }
 
@@ -29,25 +45,56 @@ async function resolveUserByEmail(email: string): Promise<SessionUser | null> {
   };
 }
 
-export async function getOptionalUserId(): Promise<string | null> {
-  const session = await getSession();
+async function getGuestSessionId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return findGuestSession(cookieStore.get(GUEST_SESSION_COOKIE)?.value);
+}
 
-  if (!session?.user?.email) {
-    return null;
+export async function getOptionalUser(): Promise<SessionUser | null> {
+  return getCurrentUser();
+}
+
+export async function getOptionalViewer(): Promise<ViewerIdentity> {
+  const [user, guestSessionId] = await Promise.all([
+    getCurrentUser(),
+    getGuestSessionId(),
+  ]);
+
+  return {
+    userId: user?.id ?? null,
+    guestSessionId,
+  };
+}
+
+export async function getUploadViewer(): Promise<ViewerIdentity> {
+  const user = await getCurrentUser();
+  const cookieStore = await cookies();
+  const guestSessionId = await findGuestSession(
+    cookieStore.get(GUEST_SESSION_COOKIE)?.value,
+  );
+
+  if (user) {
+    return { userId: user.id, guestSessionId };
   }
 
-  const user = await resolveUserByEmail(session.user.email);
-  return user?.id ?? null;
+  if (guestSessionId) {
+    return { userId: null, guestSessionId };
+  }
+
+  const guestSession = await createGuestSession();
+  cookieStore.set(GUEST_SESSION_COOKIE, guestSession.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: GUEST_SESSION_MAX_AGE,
+  });
+
+  return { userId: null, guestSessionId: guestSession.id };
 }
 
 export async function requireSessionUser(): Promise<SessionUser> {
-  const session = await getSession();
-
-  if (!session?.user?.email) {
-    throwApiError(401, 'UNAUTHORIZED', 'Unauthorized');
-  }
-
-  const user = await resolveUserByEmail(session.user.email);
+  const user = await getCurrentUser();
 
   if (!user) {
     throwApiError(401, 'UNAUTHORIZED', 'Unauthorized');

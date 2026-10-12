@@ -21,7 +21,9 @@ Open <http://localhost:3000>. The `.env.example` file lists the variable names; 
 pnpm exec prisma db push
 ```
 
-Do not point schema-sync commands at production. The Better Auth branch changes the auth tables and `User.emailVerified` type compared with the earlier NextAuth schema; production schema migration needs a reviewed migration plan.
+Do not point schema-sync commands at production. The Better Auth branch changes the auth tables and `User.emailVerified` type compared with the earlier NextAuth schema; production schema migration needs a reviewed migration plan. The guest-session migration is additive to an existing Better Auth schema and does not bootstrap a fresh database.
+
+Guest uploads are linked to a random, HTTP-only browser cookie backed by a hashed token in PostgreSQL. The cookie expires after 30 days. Existing photo/generation rows without a user or guest-session owner are denied by the application until a reviewed data-transition plan is in place. Private selfie and result images are served through ownership-checked application routes rather than exposing stored Cloudinary URLs.
 
 ## Environment variables
 
@@ -60,7 +62,7 @@ The test suite uses mocked Prisma and image providers, so unit tests do not need
 
 - App Router pages and API handlers live under `src/app/`.
 - Business logic is in `src/services/` (`photo.ts`, `wig.ts`, `generation.ts`).
-- Better Auth is configured in `src/lib/auth.ts`; the API handler is `src/app/api/auth/[...all]/route.ts`.
+- Better Auth is configured in `src/lib/auth.ts`; the API handler is `src/app/api/auth/[...all]/route.ts`. New-user roles default to `user`, and admin access is enforced from the database on server routes and layouts.
 - Prisma uses the schema in `prisma/schema.prisma` and the singleton in `src/lib/prisma.ts`.
 - Cloudinary integration is centralized in `src/lib/cloudinary.ts` and `src/lib/cloudinary-utils.ts`.
 - Image generation uses OpenAI; optional hair segmentation uses Replicate via `src/lib/replicate.ts`.

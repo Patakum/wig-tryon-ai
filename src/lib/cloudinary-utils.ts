@@ -1,4 +1,5 @@
 import cloudinary, { assertCloudinaryConfig } from './cloudinary';
+import { throwApiError } from '@/src/lib/api/errors';
 
 export type CloudinaryFolder = 'wig-ai' | 'wig-ai/wigs' | 'generations';
 
@@ -6,6 +7,46 @@ export type UploadResult = {
   publicId: string;
   secureUrl: string;
 };
+
+export async function fetchCloudinaryImage(
+  imageUrl: string,
+): Promise<{ body: ReadableStream<Uint8Array>; contentType: string }> {
+  let url: URL;
+  try {
+    url = new URL(imageUrl);
+  } catch {
+    throwApiError(502, 'IMAGE_UNAVAILABLE', 'Image retrieval failed');
+  }
+
+  if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com') {
+    throwApiError(502, 'IMAGE_UNAVAILABLE', 'Image retrieval failed');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, { cache: 'no-store', redirect: 'error' });
+  } catch {
+    throwApiError(502, 'IMAGE_UNAVAILABLE', 'Image retrieval failed');
+  }
+
+  const contentType = response.headers
+    .get('content-type')
+    ?.split(';', 1)[0]
+    .toLowerCase();
+  const allowedTypes = new Set([
+    'image/avif',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  ]);
+
+  if (!response.ok || !response.body || !contentType || !allowedTypes.has(contentType)) {
+    throwApiError(502, 'IMAGE_UNAVAILABLE', 'Image retrieval failed');
+  }
+
+  return { body: response.body, contentType };
+}
 
 /**
  * Upload a raw buffer to Cloudinary (more efficient than base64 — avoids 33% size overhead).

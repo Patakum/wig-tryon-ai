@@ -1,18 +1,33 @@
-import { getOptionalUserId } from '@/src/lib/api/auth';
+import { getOptionalViewer } from '@/src/lib/api/auth';
 import { normalizeErrorToResponse } from '@/src/lib/api/errors';
 import { ok } from '@/src/lib/api/http';
 import { generateRequestSchema, parseJsonBody } from '@/src/lib/api/parse';
-import { createPendingGeneration, runGeneration } from '@/src/services/generation';
+import {
+  createPendingGeneration,
+  getGenerationCreationAccess,
+  runGeneration,
+} from '@/src/services/generation';
+
+export async function GET() {
+  try {
+    const viewer = await getOptionalViewer();
+    const access = await getGenerationCreationAccess(viewer);
+
+    return ok(access);
+  } catch (error: unknown) {
+    return normalizeErrorToResponse(error, 'Failed to check generation access');
+  }
+}
 
 export async function POST(req: Request) {
   try {
-    const userId = await getOptionalUserId();
+    const viewer = await getOptionalViewer();
     const { photoId, wigId } = await parseJsonBody(req, generateRequestSchema);
 
     const { generationId } = await createPendingGeneration({
       photoId,
       wigId,
-      viewerUserId: userId,
+      viewer,
     });
 
     // Fire-and-forget: start AI work in the background without blocking the response.
