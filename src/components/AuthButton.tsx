@@ -1,8 +1,9 @@
 'use client';
 
-import { signIn, signOut, useSession } from 'next-auth/react';
-import { CircleUser, LogOutIcon } from 'lucide-react';
+import { authClient } from '@/src/lib/auth-client';
+import { CircleUser, LoaderIcon, LogOutIcon } from 'lucide-react';
 import IconButton from './IconButton';
+import Link from 'next/link';
 
 export default function AuthButton({
   className,
@@ -11,14 +12,22 @@ export default function AuthButton({
   className?: string;
   size?: number;
 }) {
-  const { data: session } = useSession();
+  const { data: session, isPending } = authClient.useSession();
+
+  if (isPending) {
+    return (
+      <IconButton label="Loading..." className={className}>
+        <LoaderIcon size={size} className="animate-spin" />;
+      </IconButton>
+    );
+  }
 
   if (session) {
     return (
       <IconButton
         label="Sign out"
         className={className}
-        onClick={() => signOut()}
+        onClick={() => authClient.signOut()}
       >
         <LogOutIcon size={size} />
       </IconButton>
@@ -26,12 +35,10 @@ export default function AuthButton({
   }
 
   return (
-    <IconButton
-      label="Sign in with Google"
-      className={className}
-      onClick={() => signIn('google')}
-    >
-      <CircleUser size={size} />
+    <IconButton label="Sign in with Google" className={className}>
+      <Link href="/login">
+        <CircleUser size={size} />
+      </Link>
     </IconButton>
   );
 }

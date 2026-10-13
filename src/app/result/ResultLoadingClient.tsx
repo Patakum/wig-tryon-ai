@@ -40,7 +40,7 @@ export default function ResultLoadingClient({
   const [elapsed, setElapsed] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const [tipVisible, setTipVisible] = useState(true);
-  const [done, setDone] = useState(false);
+  const done = false;
   const [failed, setFailed] = useState(false);
   const startRef = useRef<number>(0);
 
@@ -67,6 +67,22 @@ export default function ResultLoadingClient({
     const pollInterval = setInterval(async () => {
       try {
         const res = await fetch(`/api/generation?id=${generationId}`);
+        if (res.status === 401) {
+          clearInterval(timerInterval);
+          clearInterval(tipInterval);
+          clearInterval(pollInterval);
+          router.push(
+            `/login?next=${encodeURIComponent(`/result?id=${generationId}`)}`,
+          );
+          return;
+        }
+        if (res.status === 403) {
+          clearInterval(timerInterval);
+          clearInterval(tipInterval);
+          clearInterval(pollInterval);
+          setFailed(true);
+          return;
+        }
         if (!res.ok) return;
         const data = await res.json();
 

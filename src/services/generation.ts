@@ -7,6 +7,14 @@ import { getWigOrThrow } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
 import { segmentHair } from '@/src/lib/replicate';
 import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
+import { requireOwner } from '@/src/services/ownership';
+import type { ViewerIdentity } from '@/src/types/viewer';
+
+type GenerationCreationAccess = {
+  canCreateGeneration: boolean;
+  requiresLoginToGenerateAgain: boolean;
+  message: string | null;
+};
 
 function getOpenAiClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -24,7 +32,7 @@ function getOpenAiClient(): OpenAI {
 
 export async function getGenerationForViewer(
   generationId: string,
-  viewerUserId: string | null,
+  viewer: ViewerIdentity,
 ) {
   const generation = await prisma.generation.findUnique({
     where: { id: generationId },
@@ -34,9 +42,7 @@ export async function getGenerationForViewer(
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
-  if (generation.userId && generation.userId !== viewerUserId) {
-    throwApiError(403, 'FORBIDDEN', 'Forbidden');
-  }
+  requireOwner(generation, viewer);
 
   return generation;
 }
@@ -44,20 +50,23 @@ export async function getGenerationForViewer(
 export async function createFeedbackForGeneration(params: {
   generationId: string;
   userId: string;
+  viewer: ViewerIdentity;
   message: string;
 }) {
+  if (params.viewer.userId !== params.userId) {
+    throwApiError(403, 'FORBIDDEN', 'Forbidden');
+  }
+
   const generation = await prisma.generation.findUnique({
     where: { id: params.generationId },
-    select: { userId: true },
+    select: { userId: true, guestSessionId: true },
   });
 
   if (!generation) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
-  if (generation.userId && generation.userId !== params.userId) {
-    throwApiError(403, 'FORBIDDEN', 'Forbidden');
-  }
+  requireOwner(generation, params.viewer);
 
   return prisma.feedback.create({
     data: {
@@ -71,16 +80,35 @@ export async function createFeedbackForGeneration(params: {
 export async function createPendingGeneration(params: {
   photoId: string;
   wigId: string;
-  viewerUserId: string | null;
+  viewer: ViewerIdentity;
 }) {
   const [photo] = await Promise.all([
-    getPhotoForViewer(params.photoId, params.viewerUserId),
+    getPhotoForViewer(params.photoId, params.viewer),
     getWigOrThrow(params.wigId),
   ]);
+
+  const generationAccess = await getGenerationCreationAccess(params.viewer);
+  if (!generationAccess.canCreateGeneration) {
+    if (generationAccess.requiresLoginToGenerateAgain) {
+      throwApiError(
+        409,
+        'GENERATION_LOGIN_REQUIRED',
+        generationAccess.message ?? 'To generate again, please sign in.',
+      );
+    }
+
+    throwApiError(
+      409,
+      'GENERATION_LIMIT_REACHED',
+      generationAccess.message ??
+        'This account already has a pending generation.',
+    );
+  }
 
   const generation = await prisma.generation.create({
     data: {
       userId: photo.userId,
+      guestSessionId: photo.userId ? null : photo.guestSessionId,
       photoId: params.photoId,
       wigId: params.wigId,
       status: 'pending',
@@ -88,6 +116,64 @@ export async function createPendingGeneration(params: {
   });
 
   return { generationId: generation.id };
+}
+
+export async function getGenerationCreationAccess(
+  viewer: ViewerIdentity,
+): Promise<GenerationCreationAccess> {
+  if (viewer.userId) {
+    const pendingGeneration = await prisma.generation.findFirst({
+      where: {
+        userId: viewer.userId,
+        status: 'pending',
+      },
+      select: { id: true },
+    });
+
+    if (pendingGeneration) {
+      return {
+        canCreateGeneration: false,
+        requiresLoginToGenerateAgain: false,
+        message: 'You already have a generation in progress.',
+      };
+    }
+
+    return {
+      canCreateGeneration: true,
+      requiresLoginToGenerateAgain: false,
+      message: null,
+    };
+  }
+
+  if (!viewer.guestSessionId) {
+    return {
+      canCreateGeneration: false,
+      requiresLoginToGenerateAgain: true,
+      message: 'Please sign in to generate a new image.',
+    };
+  }
+
+  const existingGuestGeneration = await prisma.generation.findFirst({
+    where: {
+      guestSessionId: viewer.guestSessionId,
+    },
+    select: { id: true },
+  });
+
+  if (existingGuestGeneration) {
+    return {
+      canCreateGeneration: false,
+      requiresLoginToGenerateAgain: true,
+      message:
+        'You already used your guest generation. Sign in to generate again.',
+    };
+  }
+
+  return {
+    canCreateGeneration: true,
+    requiresLoginToGenerateAgain: false,
+    message: null,
+  };
 }
 
 export async function runGeneration(generationId: string): Promise<void> {
@@ -149,7 +235,11 @@ export async function runGeneration(generationId: string): Promise<void> {
     // OpenAI requires mask and image to be the exact same dimensions.
     const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
       sharp(Buffer.from(selfieBuffer))
-        .resize(1024, 1024, { fit: 'cover', position: 'top' })
+        .resize(1024, 1024, {
+          fit: 'contain',
+          position: 'centre',
+          background: { r: 255, g: 255, b: 255, alpha: 1 },
+        })
         .png()
         .toBuffer(),
       maskUrl
@@ -172,18 +262,15 @@ export async function runGeneration(generationId: string): Promise<void> {
     const prompt = `Replace the hair in the masked area with the hairstyle from the second image.
 Keep the face, skin tone, lighting, and identity completely unchanged.
 Blend seamlessly. Photorealistic result.`;
-console.log('Sending generation request to OpenAI with prompt:');
     const response = await openai.images.edit({
-      model: 'gpt-image-1',
+      model: 'gpt-image-2',
       image: [selfieFile, wigFile],
       mask: maskFile,
       prompt,
-      quality: 'low',
+      quality: 'auto',
       size: '1024x1024',
-      // jpeg is faster for OpenAI to produce and smaller to upload to Cloudinary
       output_format: 'jpeg',
     });
-console.log('OpenAI response:', response);
     const base64 = response.data?.[0]?.b64_json;
 
     if (!base64) {
@@ -213,7 +300,7 @@ console.log('OpenAI response:', response);
 export async function generateTryOn(params: {
   photoId: string;
   wigId: string;
-  viewerUserId: string | null;
+  viewer: ViewerIdentity;
 }) {
   const { generationId } = await createPendingGeneration(params);
   await runGeneration(generationId);

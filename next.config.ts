@@ -1,11 +1,23 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  turbopack: {},
+  outputFileTracingRoot: process.cwd(),
+  turbopack: { root: process.cwd() },
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // face-api.js / node-fetch reference Node-only modules that browsers never use
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        encoding: false,
+      };
+    }
+    return config;
   },
   images: {
     remotePatterns: (

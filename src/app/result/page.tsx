@@ -1,9 +1,13 @@
 import { notFound, redirect } from 'next/navigation';
-import { prisma } from '@/src/lib/prisma';
 import PageContainer from '@/src/components/PageContainer';
 import PageHeader from '@/src/components/PageHeader';
 import { getWig, getLatestWigs } from '@/src/services/wig';
-import { getPhoto } from '@/src/services/photo';
+import { getPhotoForViewer } from '@/src/services/photo';
+import {
+  getGenerationForViewer,
+} from '@/src/services/generation';
+import { ApiRouteError } from '@/src/lib/api/errors';
+import { getOptionalViewer } from '@/src/lib/api/auth';
 import ResultPageClient from './ResultPageClient';
 import ResultLoadingClient from './ResultLoadingClient';
 
@@ -21,18 +25,41 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
     redirect('/catalog');
   }
 
-  const generation = await prisma.generation.findUnique({
-    where: { id },
-  });
-
-  if (!generation) {
-    notFound();
+  const viewer = await getOptionalViewer();
+  let generation;
+  try {
+    generation = await getGenerationForViewer(id, viewer);
+  } catch (error) {
+    if (error instanceof ApiRouteError && error.status === 401) {
+      redirect(`/login?next=${encodeURIComponent(`/result?id=${id}`)}`);
+    }
+    if (error instanceof ApiRouteError && error.status === 404) {
+      notFound();
+    }
+    if (error instanceof ApiRouteError && error.status === 403) {
+      notFound();
+    }
+    throw error;
   }
 
   const wigId = generation.wigId;
-  const [wig, photo, latestWigs] = await Promise.all([
+  let photo;
+  try {
+    photo = await getPhotoForViewer(generation.photoId, viewer);
+  } catch (error) {
+    if (error instanceof ApiRouteError && error.status === 401) {
+      redirect(`/login?next=${encodeURIComponent(`/result?id=${id}`)}`);
+    }
+    if (
+      error instanceof ApiRouteError &&
+      (error.status === 403 || error.status === 404)
+    ) {
+      notFound();
+    }
+    throw error;
+  }
+  const [wig, latestWigs] = await Promise.all([
     getWig(wigId),
-    getPhoto(generation.photoId),
     getLatestWigs(12),
   ]);
 
@@ -52,7 +79,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
           wigId={wigId}
           wigName={wigName}
           wigImageUrl={wigImageUrl}
-          photoImageUrl={photo.imageUrl}
+          photoImageUrl={`/api/photos/${encodeURIComponent(photo.id)}/image`}
           wigImages={wigImages}
         />
       </PageContainer>
@@ -68,8 +95,8 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
         generationId={generation.id}
         wigName={wigName}
         wigImageUrl={wigImageUrl}
-        photoImageUrl={photo.imageUrl}
-        resultImageUrl={generation.resultImageUrl}
+        photoImageUrl={`/api/photos/${encodeURIComponent(photo.id)}/image`}
+        resultImageUrl={`/api/generations/${encodeURIComponent(generation.id)}/image`}
         whatsappPhone={whatsappPhone}
       />
     </PageContainer>

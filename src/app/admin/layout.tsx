@@ -1,15 +1,14 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/src/lib/auth';
+import { getOptionalUser } from '@/src/lib/api/auth';
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const user = await getOptionalUser();
 
-  if (!session || session.user.role !== 'admin') {
+  if (user?.role !== 'admin') {
     redirect('/catalog');
   }
 

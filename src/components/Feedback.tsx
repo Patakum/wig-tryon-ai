@@ -1,6 +1,8 @@
 'use client';
+
 import axios from 'axios';
-import { useReducer } from 'react';
+import { useEffect, useReducer } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   feedbackReducer,
   initialFeedbackState,
@@ -8,7 +10,17 @@ import {
 import { Button } from './ui/button';
 
 export default function Feedback({ id }: { id: string }) {
+  const router = useRouter();
   const [state, dispatch] = useReducer(feedbackReducer, initialFeedbackState);
+  const draftKey = `wig-feedback-draft:${id}`;
+
+  useEffect(() => {
+    const draft = sessionStorage.getItem(draftKey);
+    if (draft) {
+      dispatch({ type: 'SET_MESSAGE', payload: draft });
+      sessionStorage.removeItem(draftKey);
+    }
+  }, [draftKey]);
 
   const handleSubmit = async () => {
     if (!state.message.trim()) return;
@@ -23,6 +35,22 @@ export default function Feedback({ id }: { id: string }) {
 
       dispatch({ type: 'SEND_SUCCESS' });
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        try {
+          sessionStorage.setItem(draftKey, state.message);
+        } catch (storageError) {
+          console.error('Unable to preserve feedback draft:', storageError);
+          dispatch({
+            type: 'SEND_ERROR',
+            payload: 'כדי לשלוח משוב, עליך להתחבר למשתמש תחילה. הטיוטה שלך לא נשמרה.',
+          });
+          return;
+        }
+
+        router.push(`/login?next=${encodeURIComponent(`/result?id=${id}`)}`);
+        return;
+      }
+
       const message = axios.isAxiosError(error)
         ? (error.response?.data?.error?.message ?? 'נכשל בשליחת המשוב')
         : 'נכשל בשליחת המשוב';

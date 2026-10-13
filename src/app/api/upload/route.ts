@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getOptionalUserId } from '@/src/lib/api/auth';
+import { getUploadViewer } from '@/src/lib/api/auth';
 import { normalizeErrorToResponse } from '@/src/lib/api/errors';
 import { ok } from '@/src/lib/api/http';
 import {
@@ -14,19 +14,19 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getOptionalUserId();
+    const viewer = await getUploadViewer();
 
     const contentType = req.headers.get('content-type') ?? '';
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = parseImageFormFile(formData);
-      const uploaded = await uploadPhotoFromFile(file, userId);
+      const uploaded = await uploadPhotoFromFile(file, viewer);
       return ok(uploaded, 201);
     }
 
     const { file } = await parseJsonBody(req, uploadBase64Schema);
-    const uploaded = await uploadPhotoFromDataUri(file, userId);
+    const uploaded = await uploadPhotoFromDataUri(file, viewer);
     return ok(uploaded, 201);
   } catch (error) {
     return normalizeErrorToResponse(error, 'Upload failed');

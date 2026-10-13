@@ -1,4 +1,4 @@
-import { getOptionalUserId } from '@/src/lib/api/auth';
+import { getOptionalViewer } from '@/src/lib/api/auth';
 import { normalizeErrorToResponse } from '@/src/lib/api/errors';
 import { ok } from '@/src/lib/api/http';
 import { requireRouteParam } from '@/src/lib/api/parse';
@@ -12,12 +12,16 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const userId = await getOptionalUserId();
+    const viewer = await getOptionalViewer();
     const { photoId } = await context.params;
     const id = requireRouteParam(photoId, 'No photoId provided');
 
-    const photo = await getPhotoForViewer(id, userId);
-    return ok(photo);
+    const photo = await getPhotoForViewer(id, viewer);
+    return ok({
+      photoId: photo.id,
+      imageUrl: `/api/photos/${encodeURIComponent(photo.id)}/image`,
+      createdAt: photo.createdAt,
+    });
   } catch (error) {
     return normalizeErrorToResponse(error, 'Failed to fetch photo');
   }

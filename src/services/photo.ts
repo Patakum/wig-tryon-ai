@@ -1,6 +1,8 @@
 import cloudinary from '@/src/lib/cloudinary';
 import { prisma } from '@/src/lib/prisma';
 import { throwApiError } from '@/src/lib/api/errors';
+import { requireOwner } from '@/src/services/ownership';
+import type { ViewerIdentity } from '@/src/types/viewer';
 
 async function uploadBufferToCloudinary(buffer: Buffer) {
   return new Promise<{ secure_url: string }>((resolve, reject) => {
@@ -27,29 +29,104 @@ async function uploadBufferToCloudinary(buffer: Buffer) {
   });
 }
 
-async function createPhoto(userId: string | null, imageUrl: string) {
+async function createPhoto(viewer: ViewerIdentity, imageUrl: string) {
   return prisma.photo.create({
     data: {
-      userId,
+      userId: viewer.userId,
+      guestSessionId: viewer.userId ? null : viewer.guestSessionId,
       imageUrl,
     },
   });
 }
 
-export async function uploadPhotoFromFile(file: File, userId: string | null) {
+export async function transferGuestOwnershipToUser(params: {
+  userId: string;
+  guestSessionId: string;
+}) {
+  const { photoResult, generationResult } = await prisma.$transaction(
+    async (tx) => {
+      const [claimedPhotoByOtherUser, claimedGenerationByOtherUser] =
+        await Promise.all([
+          tx.photo.findFirst({
+            where: {
+              guestSessionId: params.guestSessionId,
+              userId: {
+                not: null,
+                notIn: [params.userId],
+              },
+            },
+            select: { id: true },
+          }),
+          tx.generation.findFirst({
+            where: {
+              guestSessionId: params.guestSessionId,
+              userId: {
+                not: null,
+                notIn: [params.userId],
+              },
+            },
+            select: { id: true },
+          }),
+        ]);
+
+      if (claimedPhotoByOtherUser || claimedGenerationByOtherUser) {
+        throwApiError(
+          403,
+          'FORBIDDEN',
+          'This guest session is already linked to a different account.',
+        );
+      }
+
+      const [photoUpdateResult, generationUpdateResult] = await Promise.all([
+        tx.photo.updateMany({
+          where: {
+            userId: null,
+            guestSessionId: params.guestSessionId,
+          },
+          data: {
+            userId: params.userId,
+          },
+        }),
+        tx.generation.updateMany({
+          where: {
+            userId: null,
+            guestSessionId: params.guestSessionId,
+          },
+          data: {
+            userId: params.userId,
+          },
+        }),
+      ]);
+
+      return {
+        photoResult: photoUpdateResult,
+        generationResult: generationUpdateResult,
+      };
+    },
+  );
+
+  return {
+    transferredPhotoCount: photoResult.count,
+    transferredGenerationCount: generationResult.count,
+  };
+}
+
+export async function uploadPhotoFromFile(
+  file: File,
+  viewer: ViewerIdentity,
+) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const uploaded = await uploadBufferToCloudinary(buffer);
-  const photo = await createPhoto(userId, uploaded.secure_url);
+  const photo = await createPhoto(viewer, uploaded.secure_url);
 
   return {
     photoId: photo.id,
-    imageUrl: photo.imageUrl,
   };
 }
 
 export async function uploadPhotoFromDataUri(
   file: string,
-  userId: string | null,
+  viewer: ViewerIdentity,
 ) {
   const uploaded = await cloudinary.uploader.upload(file, {
     folder: 'wig-ai',
@@ -60,17 +137,16 @@ export async function uploadPhotoFromDataUri(
     ],
   });
 
-  const photo = await createPhoto(userId, uploaded.secure_url);
+  const photo = await createPhoto(viewer, uploaded.secure_url);
 
   return {
     photoId: photo.id,
-    imageUrl: photo.imageUrl,
   };
 }
 
 export async function getPhotoForViewer(
   photoId: string,
-  viewerUserId: string | null,
+  viewer: ViewerIdentity,
 ) {
   const photo = await prisma.photo.findUnique({ where: { id: photoId } });
 
@@ -78,17 +154,7 @@ export async function getPhotoForViewer(
     throwApiError(404, 'NOT_FOUND', 'Photo not found');
   }
 
-  if (photo.userId && photo.userId !== viewerUserId) {
-    throwApiError(403, 'FORBIDDEN', 'Forbidden');
-  }
+  requireOwner(photo, viewer);
 
-  return photo;
-}
-
-export async function getPhoto(photoId: string) {
-  const photo = await prisma.photo.findUnique({ where: { id: photoId } });
-  if (!photo) {
-    throwApiError(404, 'NOT_FOUND', 'Photo not found');
-  }
   return photo;
 }
