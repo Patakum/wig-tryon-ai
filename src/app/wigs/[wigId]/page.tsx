@@ -1,14 +1,25 @@
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { getWig } from '@/src/services/wig';
+import { getOptionalUser } from '@/src/lib/api/auth';
+import { getFavoriteState, getWig } from '@/src/services/wig';
 import WigDetailClient from './WigDetailClient';
 import WigActionButtons from './WigActionButtons';
 import PageContainer from '@/src/components/PageContainer';
 
-function ProductImage({ src, alt }: { src: string; alt: string }) {
+function ProductImage({
+  src,
+  alt,
+  wigId,
+  initialFavorited,
+}: {
+  src: string;
+  alt: string;
+  wigId: string;
+  initialFavorited: boolean;
+}) {
   return (
     <figure className="relative w-full bg-gray-50">
-      <WigDetailClient />
+      <WigDetailClient wigId={wigId} initialFavorited={initialFavorited} />
       <Image
         src={src}
         alt={alt}
@@ -68,22 +79,32 @@ export default async function WigDetailPage({
   params: Promise<{ wigId: string }>;
 }) {
   const { wigId } = await params;
-  const wig = await getWig(wigId);
+  const [wig, user] = await Promise.all([getWig(wigId), getOptionalUser()]);
 
   if (!wig) {
     notFound();
   }
 
+  const favoriteState = await getFavoriteState({
+    wigId: wig.id,
+    userId: user?.id ?? null,
+  });
+
   return (
     <PageContainer className="p-4">
-      <ProductImage src={wig.imageUrl} alt={wig.name} />
+      <ProductImage
+        src={wig.imageUrl}
+        alt={wig.name}
+        wigId={wig.id}
+        initialFavorited={favoriteState.isFavorited}
+      />
       <ProductInfo
         name={wig.name}
         description={wig.description}
         wigPrice={wig.price}
       />
       <div className="h-36"></div>
-    
+
       <WigActionButtons wigId={wig.id} />
     </PageContainer>
   );

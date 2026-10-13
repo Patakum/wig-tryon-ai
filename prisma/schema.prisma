@@ -28,6 +28,7 @@ model User {
   deletedAt        DateTime?
   photos           Photo[]
   generations      Generation[]
+  favorites        Favorite[]
   feedbacks        Feedback[]
   accounts         Account[]
   sessions         Session[]
@@ -56,6 +57,21 @@ model Wig {
   createdAt   DateTime @default(now())
 
   generations Generation[]
+  favorites   Favorite[]
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  wigId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wig  Wig  @relation(fields: [wigId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wigId])
+  @@index([userId])
+  @@index([wigId])
 }
 
 model Photo {
