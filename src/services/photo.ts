@@ -39,6 +39,78 @@ async function createPhoto(viewer: ViewerIdentity, imageUrl: string) {
   });
 }
 
+export async function transferGuestOwnershipToUser(params: {
+  userId: string;
+  guestSessionId: string;
+}) {
+  const { photoResult, generationResult } = await prisma.$transaction(
+    async (tx) => {
+      const [claimedPhotoByOtherUser, claimedGenerationByOtherUser] =
+        await Promise.all([
+          tx.photo.findFirst({
+            where: {
+              guestSessionId: params.guestSessionId,
+              userId: {
+                not: null,
+                notIn: [params.userId],
+              },
+            },
+            select: { id: true },
+          }),
+          tx.generation.findFirst({
+            where: {
+              guestSessionId: params.guestSessionId,
+              userId: {
+                not: null,
+                notIn: [params.userId],
+              },
+            },
+            select: { id: true },
+          }),
+        ]);
+
+      if (claimedPhotoByOtherUser || claimedGenerationByOtherUser) {
+        throwApiError(
+          403,
+          'FORBIDDEN',
+          'This guest session is already linked to a different account.',
+        );
+      }
+
+      const [photoUpdateResult, generationUpdateResult] = await Promise.all([
+        tx.photo.updateMany({
+          where: {
+            userId: null,
+            guestSessionId: params.guestSessionId,
+          },
+          data: {
+            userId: params.userId,
+          },
+        }),
+        tx.generation.updateMany({
+          where: {
+            userId: null,
+            guestSessionId: params.guestSessionId,
+          },
+          data: {
+            userId: params.userId,
+          },
+        }),
+      ]);
+
+      return {
+        photoResult: photoUpdateResult,
+        generationResult: generationUpdateResult,
+      };
+    },
+  );
+
+  return {
+    transferredPhotoCount: photoResult.count,
+    transferredGenerationCount: generationResult.count,
+  };
+}
+
 export async function uploadPhotoFromFile(
   file: File,
   viewer: ViewerIdentity,

@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/src/lib/auth';
 import { prisma } from '@/src/lib/prisma';
 import { throwApiError } from '@/src/lib/api/errors';
+import { transferGuestOwnershipToUser } from '@/src/services/photo';
 import {
   createGuestSession,
   findGuestSession,
@@ -60,6 +61,13 @@ export async function getOptionalViewer(): Promise<ViewerIdentity> {
     getGuestSessionId(),
   ]);
 
+  if (user?.id && guestSessionId) {
+    await transferGuestOwnershipToUser({
+      userId: user.id,
+      guestSessionId,
+    });
+  }
+
   return {
     userId: user?.id ?? null,
     guestSessionId,
@@ -74,6 +82,13 @@ export async function getUploadViewer(): Promise<ViewerIdentity> {
   );
 
   if (user) {
+    if (guestSessionId) {
+      await transferGuestOwnershipToUser({
+        userId: user.id,
+        guestSessionId,
+      });
+    }
+
     return { userId: user.id, guestSessionId };
   }
 
