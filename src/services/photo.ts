@@ -57,6 +57,7 @@ export async function transferGuestOwnershipToUser(params: {
             },
             select: { id: true },
           }),
+
           tx.generation.findFirst({
             where: {
               guestSessionId: params.guestSessionId,
@@ -85,8 +86,10 @@ export async function transferGuestOwnershipToUser(params: {
           },
           data: {
             userId: params.userId,
+            guestSessionId: null,
           },
         }),
+
         tx.generation.updateMany({
           where: {
             userId: null,
@@ -94,6 +97,7 @@ export async function transferGuestOwnershipToUser(params: {
           },
           data: {
             userId: params.userId,
+            guestSessionId: null,
           },
         }),
       ]);
@@ -111,10 +115,7 @@ export async function transferGuestOwnershipToUser(params: {
   };
 }
 
-export async function uploadPhotoFromFile(
-  file: File,
-  viewer: ViewerIdentity,
-) {
+export async function uploadPhotoFromFile(file: File, viewer: ViewerIdentity) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const uploaded = await uploadBufferToCloudinary(buffer);
   const photo = await createPhoto(viewer, uploaded.secure_url);
