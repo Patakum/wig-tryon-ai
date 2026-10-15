@@ -14,6 +14,23 @@ export default function AdminPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
+            <CardTitle>Business Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Manage WhatsApp, phone, email, address, and opening hours.
+            </p>
+            <Link
+              href="/admin/business-info"
+              className="text-sm font-medium underline"
+            >
+              Edit business info
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>All Feedbacks</CardTitle>
           </CardHeader>
           <CardContent>
