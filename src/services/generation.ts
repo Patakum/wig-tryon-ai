@@ -263,11 +263,11 @@ export async function runGeneration(generationId: string): Promise<void> {
 Keep the face, skin tone, lighting, and identity completely unchanged.
 Blend seamlessly. Photorealistic result.`;
     const response = await openai.images.edit({
-      model: 'gpt-image-2',
+      model: 'gpt-image-1',
       image: [selfieFile, wigFile],
       mask: maskFile,
       prompt,
-      quality: 'auto',
+      quality: 'low',
       size: '1024x1024',
       output_format: 'jpeg',
     });
