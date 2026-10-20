@@ -1,0 +1,38 @@
+'use client';
+
+import { useSyncExternalStore } from 'react';
+import {
+  ReactCompareSlider,
+  ReactCompareSliderImage,
+} from 'react-compare-slider';
+import { Skeleton } from './skeleton';
+
+type CompareSliderProps = {
+  beforeUrl: string;
+  afterUrl: string;
+};
+
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+export default function CompareSlider({
+  beforeUrl,
+  afterUrl,
+}: CompareSliderProps) {
+  const mounted = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
+
+  if (!mounted) return <Skeleton className="h-100 w-full rounded-xl" />;
+
+  return (
+    <ReactCompareSlider
+      className="rounded-xl overflow-hidden w-full"
+      itemOne={<ReactCompareSliderImage src={beforeUrl} alt="Before" />}
+      itemTwo={<ReactCompareSliderImage src={afterUrl} alt="After" />}
+    />
+  );
+}

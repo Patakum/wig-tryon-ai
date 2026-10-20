@@ -12,12 +12,39 @@ datasource db {
 }
 
 model User {
+  id               String       @id @default(cuid())
+  email            String       @unique
+  name             String
+  emailVerified    Boolean      @default(false)
+  image            String?
+  role             String       @default("user")
+  credits          Int          @default(3)
+  banned           Boolean?
+  banReason        String?
+  banExpires       DateTime?
+  twoFactorEnabled Boolean?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
+  photos           Photo[]
+  generations      Generation[]
+  feedbacks        Feedback[]
+  accounts         Account[]
+  sessions         Session[]
+  passkeys         Passkey[]
+  twoFactors       TwoFactor[]
+}
+
+model GuestSession {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      String   @default("user")
-  credits   Int      @default(3)
+  tokenHash String   @unique
+  expiresAt DateTime
   createdAt DateTime @default(now())
+
+  photos      Photo[]
+  generations Generation[]
+
+  @@index([expiresAt])
 }
 
 model Wig {
@@ -27,21 +54,131 @@ model Wig {
   imageUrl    String
   price       Float?
   createdAt   DateTime @default(now())
+
+  generations Generation[]
 }
 
 model Photo {
-  id        String   @id @default(cuid())
-  userId    String
-  imageUrl  String
-  createdAt DateTime @default(now())
+  id             String        @id @default(cuid())
+  userId         String?
+  guestSessionId String?
+  imageUrl       String
+  createdAt      DateTime      @default(now())
+  user           User?         @relation(fields: [userId], references: [id])
+  guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
+
+  generations Generation[]
+
+  @@index([guestSessionId])
 }
 
 model Generation {
   id             String   @id @default(cuid())
-  userId         String
+  userId         String?
+  guestSessionId String?
   photoId        String
   wigId          String
   resultImageUrl String?
   status         String
   createdAt      DateTime @default(now())
+
+  user         User?         @relation(fields: [userId], references: [id])
+  guestSession GuestSession? @relation(fields: [guestSessionId], references: [id])
+  photo        Photo         @relation(fields: [photoId], references: [id])
+  wig          Wig           @relation(fields: [wigId], references: [id])
+  feedbacks    Feedback[]
+
+  @@index([guestSessionId])
+}
+
+model Feedback {
+  id           String   @id @default(cuid())
+  generationId String
+  userId       String
+  message      String
+  createdAt    DateTime @default(now())
+
+  generation Generation @relation(fields: [generationId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+}
+
+// run `npx prisma migrate dev` to apply changes to the database
+
+// better-auth models
+
+model Session {
+  id             String   @id @default(cuid())
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  impersonatedBy String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model TwoFactor {
+  id          String   @id @default(cuid())
+  secret      String
+  backupCodes String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified    Boolean? @default(true)
+
+  @@index([secret])
+  @@index([userId])
+}
+
+model Passkey {
+  id             String    @id @default(cuid())
+  name           String?
+  publicKey      String
+  userId         String
+  webauthnUserID String
+  counter        Int
+  deviceType     String
+  backedUp       Boolean
+  transports     String?
+  createdAt      DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID   String
+  aaguid         String?
+
+  @@index([userId])
+  @@index([credentialID])
 }
