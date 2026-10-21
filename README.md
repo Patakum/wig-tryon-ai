@@ -19,16 +19,18 @@ Buying a wig from catalog photos makes it difficult to imagine the look on your 
 
 ### Screenshots
 
-The four images below should be captured from a verified app build using **consented demo photos** (never real customers' selfies). Screenshots are not yet committed, so this README does not substitute fabricated UI images for evidence.
+<p align="center">
+  <img src="./docs/screenshots/home.webp" alt="Mobile homepage with the try-on call to action" width="260" />
+  <img src="./docs/screenshots/catalog.webp" alt="Hebrew RTL mobile wig catalog and product grid" width="260" />
+</p>
 
-| Screen | What to show |
-| --- | --- |
-| **1. Catalog** | Mobile wig grid with real catalog cards |
-| **2. Wig details** | Selected wig and the try-on action |
-| **3. Photo upload** | Photo guidance, selfie preview, selected wig |
-| **4. Result** | A consented before/after comparison with the slider |
+<p align="center"><sub>Mobile homepage and wig catalog · real application screenshots</sub></p>
 
-Once captured, place images in `docs/screenshots/` as `catalog.png`, `wig-details.png`, `upload.png`, `result.png` and replace this table with embedded Markdown images. The result screenshot should be clearly marked **AI-generated preview**. Exclude personal information, tokens, account details, and non-consented faces.
+**Example AI try-on: original selfie vs. generated preview**
+
+![A supplied original selfie next to its AI-generated wig try-on preview](./docs/screenshots/before-after.webp)
+
+*Illustrative before/after provided for this project. AI may alter facial details or the exact wig appearance; results are not guaranteed and this example is not a measured quality benchmark. Use demo images with appropriate permission only.*
 
 ## User flow
 
