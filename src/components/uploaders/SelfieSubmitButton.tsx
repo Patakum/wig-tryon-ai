@@ -41,8 +41,11 @@ export default function SelfieSubmitButton({
       formData.append('file', selectedFile);
       const res = await axios.post('/api/upload', formData);
       onSuccess(res.data.photoId as string);
-    } catch {
-      setError('העלאה נכשלה. אנא נסה שנית.');
+    } catch (err) {
+      setError(
+        (axios.isAxiosError(err) && err.response?.data?.error?.message) ||
+          'העלאה נכשלה. אנא נסה שנית.',
+      );
     } finally {
       setStatus('idle');
     }

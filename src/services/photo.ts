@@ -2,6 +2,7 @@ import cloudinary from '@/src/lib/cloudinary';
 import { prisma } from '@/src/lib/prisma';
 import { throwApiError } from '@/src/lib/api/errors';
 import { requireOwner } from '@/src/services/ownership';
+import { normalizeSelfie } from '@/src/services/selfie-image';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
 async function uploadBufferToCloudinary(buffer: Buffer) {
@@ -116,7 +117,7 @@ export async function uploadPhotoFromFile(
   viewer: ViewerIdentity,
 ) {
   const buffer = Buffer.from(await file.arrayBuffer());
-  const uploaded = await uploadBufferToCloudinary(buffer);
+  const uploaded = await uploadBufferToCloudinary(await normalizeSelfie(buffer));
   const photo = await createPhoto(viewer, uploaded.secure_url);
 
   return {
@@ -128,14 +129,15 @@ export async function uploadPhotoFromDataUri(
   file: string,
   viewer: ViewerIdentity,
 ) {
-  const uploaded = await cloudinary.uploader.upload(file, {
-    folder: 'wig-ai',
-    transformation: [
-      { width: 1600, height: 1600, crop: 'limit' },
-      { fetch_format: 'auto' },
-      { quality: 'auto:good' },
-    ],
-  });
+  const separator = file.indexOf(',');
+  const header = separator === -1 ? '' : file.slice(0, separator);
+
+  if (!/^data:image\/[a-z0-9.+-]+;base64$/i.test(header)) {
+    throwApiError(400, 'PHOTO_UNREADABLE', 'לא ניתן לקרוא את התמונה.');
+  }
+
+  const buffer = Buffer.from(file.slice(separator + 1), 'base64');
+  const uploaded = await uploadBufferToCloudinary(await normalizeSelfie(buffer));
 
   const photo = await createPhoto(viewer, uploaded.secure_url);
 
