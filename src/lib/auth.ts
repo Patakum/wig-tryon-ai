@@ -11,7 +11,7 @@ export const auth = betterAuth({
     provider: 'postgresql',
   }),
   baseURL: {
-    allowedHosts: ['wig-tryon-*.vercel.app', 'localhost:3000'],
+    allowedHosts: ['wig-tryon-*.vercel.app', 'localhost:3000', 'localhost:3001'],
   },
   socialProviders:
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET

@@ -49,12 +49,13 @@ export async function getGenerationForViewer(
 
 export async function createFeedbackForGeneration(params: {
   generationId: string;
-  userId: string;
   viewer: ViewerIdentity;
   message: string;
 }) {
-  if (params.viewer.userId !== params.userId) {
-    throwApiError(403, 'FORBIDDEN', 'Forbidden');
+  const userId = params.viewer.userId;
+
+  if (!userId) {
+    throwApiError(401, 'UNAUTHORIZED', 'Sign in to leave feedback');
   }
 
   const generation = await prisma.generation.findUnique({
@@ -71,7 +72,7 @@ export async function createFeedbackForGeneration(params: {
   return prisma.feedback.create({
     data: {
       generationId: params.generationId,
-      userId: params.userId,
+      userId,
       message: params.message,
     },
   });

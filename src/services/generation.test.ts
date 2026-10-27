@@ -195,7 +195,6 @@ describe('generation ownership and setup', () => {
     await expect(
       createFeedbackForGeneration({
         generationId: 'generation-1',
-        userId: 'customer-b',
         viewer: { userId: 'customer-b', guestSessionId: null },
         message: 'Feedback',
       }),
