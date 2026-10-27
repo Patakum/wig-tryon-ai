@@ -79,6 +79,8 @@ export async function getHistoryDetail(
       status: true,
       deletedAt: true,
       resultImageUrl: true,
+      adminCanSeeSelfie: true,
+      adminCanSeeResult: true,
       createdAt: true,
       wig: {
         select: { id: true, name: true, imageUrl: true, price: true },

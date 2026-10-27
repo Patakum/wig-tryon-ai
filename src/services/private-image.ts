@@ -1,4 +1,4 @@
-import { fetchCloudinaryImage } from '@/src/lib/cloudinary-utils';
+import { fetchStoredImage } from '@/src/lib/cloudinary-utils';
 import { getGenerationForViewer } from '@/src/services/generation';
 import { getPhotoForViewer } from '@/src/services/photo';
 import type { ViewerIdentity } from '@/src/types/viewer';
@@ -8,7 +8,10 @@ export async function getPhotoImage(
   viewer: ViewerIdentity,
 ) {
   const photo = await getPhotoForViewer(photoId, viewer);
-  return fetchCloudinaryImage(photo.imageUrl);
+  return fetchStoredImage({
+    imageUrl: photo.imageUrl,
+    publicId: photo.imagePublicId,
+  });
 }
 
 export async function getGenerationImage(
@@ -17,9 +20,12 @@ export async function getGenerationImage(
 ) {
   const generation = await getGenerationForViewer(generationId, viewer);
 
-  if (!generation.resultImageUrl) {
+  if (!generation.resultImageUrl && !generation.resultPublicId) {
     return null;
   }
 
-  return fetchCloudinaryImage(generation.resultImageUrl);
+  return fetchStoredImage({
+    imageUrl: generation.resultImageUrl,
+    publicId: generation.resultPublicId,
+  });
 }

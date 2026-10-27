@@ -4,20 +4,28 @@ import { deleteImage, getPublicIdFromUrl } from '@/src/lib/cloudinary-utils';
 import { requireOwner } from '@/src/services/ownership';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
-async function purgeStoredImages(imageUrls: string[]) {
-  const publicIds = imageUrls.map((url) => {
-    const publicId = getPublicIdFromUrl(url);
+type StoredImage = { imageUrl: string | null; publicId: string | null };
+
+async function purgeStoredImages(images: StoredImage[]) {
+  // Private images are deleted by public ID; legacy rows only have the old
+  // public URL.
+  const targets = images.map((image) => {
+    if (image.publicId) {
+      return { publicId: image.publicId, type: 'authenticated' as const };
+    }
+
+    const publicId = image.imageUrl ? getPublicIdFromUrl(image.imageUrl) : null;
 
     if (!publicId) {
       throwApiError(502, 'DELETE_FAILED', 'Could not delete the stored image');
     }
 
-    return publicId;
+    return { publicId, type: 'upload' as const };
   });
 
   try {
-    for (const publicId of publicIds) {
-      await deleteImage(publicId);
+    for (const target of targets) {
+      await deleteImage(target.publicId, target.type);
     }
   } catch {
     throwApiError(502, 'DELETE_FAILED', 'Could not delete the stored image');
@@ -47,8 +55,11 @@ export async function deleteTryOn(
       photoId: true,
       status: true,
       resultImageUrl: true,
+      resultPublicId: true,
       deletedAt: true,
-      photo: { select: { imageUrl: true, deletedAt: true } },
+      photo: {
+        select: { imageUrl: true, imagePublicId: true, deletedAt: true },
+      },
     },
   });
 
@@ -79,12 +90,23 @@ export async function deleteTryOn(
   });
   const deletePhoto = otherUses === 0 && !generation.photo.deletedAt;
 
-  const imageUrls = [
-    generation.resultImageUrl,
-    deletePhoto ? generation.photo.imageUrl : null,
-  ].filter((url): url is string => Boolean(url));
+  const images: StoredImage[] = [];
 
-  await purgeStoredImages(imageUrls);
+  if (generation.resultImageUrl || generation.resultPublicId) {
+    images.push({
+      imageUrl: generation.resultImageUrl,
+      publicId: generation.resultPublicId,
+    });
+  }
+
+  if (deletePhoto && (generation.photo.imageUrl || generation.photo.imagePublicId)) {
+    images.push({
+      imageUrl: generation.photo.imageUrl,
+      publicId: generation.photo.imagePublicId,
+    });
+  }
+
+  await purgeStoredImages(images);
 
   const now = new Date();
 
@@ -92,13 +114,13 @@ export async function deleteTryOn(
     prisma.feedback.deleteMany({ where: { generationId: generation.id } }),
     prisma.generation.update({
       where: { id: generation.id },
-      data: { deletedAt: now, resultImageUrl: null },
+      data: { deletedAt: now, resultImageUrl: null, resultPublicId: null },
     }),
     ...(deletePhoto
       ? [
           prisma.photo.update({
             where: { id: generation.photoId },
-            data: { deletedAt: now, imageUrl: '' },
+            data: { deletedAt: now, imageUrl: '', imagePublicId: null },
           }),
         ]
       : []),

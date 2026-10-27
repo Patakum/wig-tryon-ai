@@ -50,19 +50,53 @@ describe('deleteTryOn', () => {
     await deleteTryOn('g1', owner);
 
     expect(mocks.deleteImage.mock.calls).toEqual([
-      ['generations/r1'],
-      ['wig-ai/s1'],
+      ['generations/r1', 'upload'],
+      ['wig-ai/s1', 'upload'],
     ]);
     expect(mocks.prisma.feedback.deleteMany).toHaveBeenCalledWith({
       where: { generationId: 'g1' },
     });
     expect(mocks.prisma.generation.update).toHaveBeenCalledWith({
       where: { id: 'g1' },
-      data: { deletedAt: expect.any(Date), resultImageUrl: null },
+      data: {
+        deletedAt: expect.any(Date),
+        resultImageUrl: null,
+        resultPublicId: null,
+      },
     });
     expect(mocks.prisma.photo.update).toHaveBeenCalledWith({
       where: { id: 'p1' },
-      data: { deletedAt: expect.any(Date), imageUrl: '' },
+      data: { deletedAt: expect.any(Date), imageUrl: '', imagePublicId: null },
+    });
+  });
+
+  it('deletes private images by public ID as authenticated assets', async () => {
+    mocks.prisma.generation.findUnique.mockResolvedValue({
+      ...generation,
+      resultPublicId: 'generations/p-result',
+      photo: {
+        ...generation.photo,
+        imagePublicId: 'wig-ai/p-selfie',
+      },
+    });
+
+    await deleteTryOn('g1', owner);
+
+    expect(mocks.deleteImage.mock.calls).toEqual([
+      ['generations/p-result', 'authenticated'],
+      ['wig-ai/p-selfie', 'authenticated'],
+    ]);
+    expect(mocks.prisma.generation.update).toHaveBeenCalledWith({
+      where: { id: 'g1' },
+      data: {
+        deletedAt: expect.any(Date),
+        resultImageUrl: null,
+        resultPublicId: null,
+      },
+    });
+    expect(mocks.prisma.photo.update).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { deletedAt: expect.any(Date), imageUrl: '', imagePublicId: null },
     });
   });
 
@@ -71,7 +105,9 @@ describe('deleteTryOn', () => {
 
     await deleteTryOn('g1', owner);
 
-    expect(mocks.deleteImage.mock.calls).toEqual([['generations/r1']]);
+    expect(mocks.deleteImage.mock.calls).toEqual([
+      ['generations/r1', 'upload'],
+    ]);
     expect(mocks.prisma.photo.update).not.toHaveBeenCalled();
   });
 

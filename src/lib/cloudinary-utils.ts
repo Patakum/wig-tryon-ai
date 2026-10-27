@@ -8,6 +8,55 @@ export type UploadResult = {
   secureUrl: string;
 };
 
+// A stored customer image. Private images carry a publicId and are only
+// reachable through a signed URL built on demand; legacy rows have just the
+// old public URL.
+export type StoredImageRef = {
+  imageUrl: string | null;
+  publicId: string | null;
+};
+
+export type CloudinaryDeliveryType = 'upload' | 'authenticated';
+
+/**
+ * Build a signed URL for a private (authenticated) image. Signatures do not
+ * expire, so this URL must stay on the server and never reach a client.
+ */
+export function getSignedPrivateUrl(publicId: string): string {
+  assertCloudinaryConfig();
+
+  return cloudinary.url(publicId, {
+    type: 'authenticated',
+    sign_url: true,
+    secure: true,
+    resource_type: 'image',
+  });
+}
+
+function resolveFetchUrl(ref: StoredImageRef): string {
+  if (ref.publicId) {
+    return getSignedPrivateUrl(ref.publicId);
+  }
+
+  if (ref.imageUrl) {
+    return ref.imageUrl;
+  }
+
+  throwApiError(502, 'IMAGE_UNAVAILABLE', 'Image retrieval failed');
+}
+
+export async function fetchStoredImage(ref: StoredImageRef) {
+  return fetchCloudinaryImage(resolveFetchUrl(ref));
+}
+
+export async function fetchStoredImageBuffer(
+  ref: StoredImageRef,
+): Promise<Buffer> {
+  const { body } = await fetchStoredImage(ref);
+
+  return Buffer.from(await new Response(body).arrayBuffer());
+}
+
 export async function fetchCloudinaryImage(
   imageUrl: string,
 ): Promise<{ body: ReadableStream<Uint8Array>; contentType: string }> {
@@ -107,19 +156,66 @@ export function uploadWig(file: string): Promise<UploadResult> {
 }
 
 /**
- * Upload a generation result image to the generations folder.
+ * Upload a customer image buffer as a private (authenticated) asset.
  */
-export function uploadGeneration(file: string): Promise<UploadResult> {
-  return uploadImage(file, 'generations');
+export async function uploadPrivateImageFromBuffer(
+  buffer: Buffer,
+  folder: CloudinaryFolder,
+): Promise<UploadResult> {
+  assertCloudinaryConfig();
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        type: 'authenticated',
+        resource_type: 'image',
+        transformation: [
+          { width: 1600, height: 1600, crop: 'limit' },
+          { quality: 'auto:good' },
+        ],
+      },
+      (error, result) => {
+        if (error || !result) {
+          return reject(error ?? new Error('Cloudinary upload failed'));
+        }
+        resolve({ publicId: result.public_id, secureUrl: result.secure_url });
+      },
+    );
+    stream.end(buffer);
+  });
+}
+
+/**
+ * Upload a customer selfie as a private asset.
+ */
+export function uploadPrivateSelfie(buffer: Buffer): Promise<UploadResult> {
+  return uploadPrivateImageFromBuffer(buffer, 'wig-ai');
+}
+
+/**
+ * Upload a generation result (base64 data URI) as a private asset.
+ */
+export async function uploadGeneration(file: string): Promise<UploadResult> {
+  assertCloudinaryConfig();
+  const result = await cloudinary.uploader.upload(file, {
+    folder: 'generations',
+    type: 'authenticated',
+  });
+
+  return { publicId: result.public_id, secureUrl: result.secure_url };
 }
 
 /**
  * Delete an image from Cloudinary by its public ID.
  */
-export async function deleteImage(publicId: string): Promise<void> {
+export async function deleteImage(
+  publicId: string,
+  type: CloudinaryDeliveryType = 'upload',
+): Promise<void> {
   assertCloudinaryConfig();
   const result = await cloudinary.uploader.destroy(publicId, {
     invalidate: true,
+    type,
   });
 
   // A missing asset is already deleted, which keeps retries safe.

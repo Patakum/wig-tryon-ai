@@ -42,6 +42,18 @@ export const archiveWigSchema = z.object({
   archived: z.boolean(),
 });
 
+export const adminVisibilitySchema = z
+  .object({
+    adminCanSeeSelfie: z.boolean().optional(),
+    adminCanSeeResult: z.boolean().optional(),
+  })
+  .refine(
+    (value) =>
+      value.adminCanSeeSelfie !== undefined ||
+      value.adminCanSeeResult !== undefined,
+    { message: 'Provide at least one setting' },
+  );
+
 export const movePhotoSchema = z.object({
   direction: z.enum(['up', 'down']),
 });
