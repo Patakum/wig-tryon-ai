@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Roboto, Josefin_Sans } from 'next/font/google';
 import './globals.css';
 import { ReactNode } from 'react';
+import ConnectionBanner from '../components/ConnectionBanner';
 import Providers from '../components/Providers';
 
 const josefinSans = Josefin_Sans({
@@ -32,7 +33,10 @@ export default function RootLayout({
       <body
         className={`${josefinSans.variable} ${roboto.variable} antialiased `}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <ConnectionBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );
