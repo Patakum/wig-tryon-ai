@@ -93,6 +93,7 @@ model Photo {
   guestSessionId String?
   imageUrl       String
   imagePublicId  String?
+  consentAt      DateTime?
   createdAt      DateTime      @default(now())
   deletedAt      DateTime?
   user           User?         @relation(fields: [userId], references: [id])

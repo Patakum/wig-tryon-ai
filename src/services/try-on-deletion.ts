@@ -4,9 +4,9 @@ import { deleteImage, getPublicIdFromUrl } from '@/src/lib/cloudinary-utils';
 import { requireOwner } from '@/src/services/ownership';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
-type StoredImage = { imageUrl: string | null; publicId: string | null };
+export type StoredImage = { imageUrl: string | null; publicId: string | null };
 
-async function purgeStoredImages(images: StoredImage[]) {
+export async function purgeStoredImages(images: StoredImage[]) {
   // Private images are deleted by public ID; legacy rows only have the old
   // public URL.
   const targets = images.map((image) => {
@@ -30,6 +30,45 @@ async function purgeStoredImages(images: StoredImage[]) {
   } catch {
     throwApiError(502, 'DELETE_FAILED', 'Could not delete the stored image');
   }
+}
+
+const DELETE_ALL_BATCH = 20;
+
+/**
+ * Delete up to a batch of the customer's try-ons (finished or failed; jobs in
+ * progress are left alone). Callers repeat until `remaining` is 0 so a large
+ * history never runs into a request time limit.
+ */
+export async function deleteAllTryOns(viewer: ViewerIdentity) {
+  const userId = viewer.userId;
+
+  if (!userId) {
+    throwApiError(401, 'UNAUTHORIZED', 'Sign in to delete your try-ons');
+  }
+
+  const where = { userId, deletedAt: null, status: { not: 'pending' } };
+  const batch = await prisma.generation.findMany({
+    where,
+    orderBy: { createdAt: 'asc' },
+    take: DELETE_ALL_BATCH,
+    select: { id: true },
+  });
+
+  let deleted = 0;
+  let failed = 0;
+
+  for (const { id } of batch) {
+    try {
+      await deleteTryOn(id, viewer);
+      deleted += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  const remaining = await prisma.generation.count({ where });
+
+  return { deleted, failed, remaining };
 }
 
 /**

@@ -8,6 +8,7 @@ export const uploadBase64Schema = z.object({
     .refine((value) => value.startsWith('data:image'), {
       message: 'Invalid file: must be a data:image string',
     }),
+  consent: z.literal(true, { error: 'Privacy policy consent is required' }),
 });
 
 export const generateRequestSchema = z.object({
@@ -114,6 +115,17 @@ export function parseWigFormData(formData: FormData): WigFormData {
     throwApiError(400, 'BAD_REQUEST', result.error.issues[0].message);
   }
   return result.data;
+}
+
+// Photos are only processed after the customer ticked the privacy consent box.
+export function requireUploadConsent(formData: FormData): void {
+  if (formData.get('consent') !== 'true') {
+    throwApiError(
+      400,
+      'CONSENT_REQUIRED',
+      'Privacy policy consent is required to upload a photo',
+    );
+  }
 }
 
 export function parseImageFormFile(formData: FormData): File {

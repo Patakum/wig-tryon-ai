@@ -15,6 +15,7 @@ async function createPhoto(
       guestSessionId: viewer.userId ? null : viewer.guestSessionId,
       imageUrl: image.secureUrl,
       imagePublicId: image.publicId,
+      consentAt: new Date(),
     },
   });
 }
