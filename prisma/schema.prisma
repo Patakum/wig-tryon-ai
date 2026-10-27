@@ -107,6 +107,7 @@ model Photo {
   userId         String?
   guestSessionId String?
   imageUrl       String
+  imagePublicId  String?
   createdAt      DateTime      @default(now())
   deletedAt      DateTime?
   user           User?         @relation(fields: [userId], references: [id])
@@ -118,15 +119,18 @@ model Photo {
 }
 
 model Generation {
-  id             String    @id @default(cuid())
-  userId         String?
-  guestSessionId String?
-  photoId        String
-  wigId          String
-  resultImageUrl String?
-  status         String
-  createdAt      DateTime  @default(now())
-  deletedAt      DateTime?
+  id                String    @id @default(cuid())
+  userId            String?
+  guestSessionId    String?
+  photoId           String
+  wigId             String
+  resultImageUrl    String?
+  resultPublicId    String?
+  adminCanSeeSelfie Boolean   @default(true)
+  adminCanSeeResult Boolean   @default(true)
+  status            String
+  createdAt         DateTime  @default(now())
+  deletedAt         DateTime?
 
   user         User?         @relation(fields: [userId], references: [id])
   guestSession GuestSession? @relation(fields: [guestSessionId], references: [id])
