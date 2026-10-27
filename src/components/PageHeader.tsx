@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import Logo from '@/src/components/Logo';
 
 type PageHeaderProps = {
@@ -19,7 +19,7 @@ export default function PageHeader({
       <h1 className="text-xl font-semibold text-center">{title}</h1>
       <div className="flex items-center justify-end gap-1">
         <Link href={backHref} aria-label={backLabel}>
-          <ChevronLeft size={24} />
+          <ChevronRight size={24} />
         </Link>
       </div>
     </header>

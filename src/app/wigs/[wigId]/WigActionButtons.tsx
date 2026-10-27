@@ -15,19 +15,13 @@ export default function WigActionButtons({ wigId }: WigActionButtonsProps) {
       >
         <Link href={`/instructions?wigId=${wigId}`}>נסי עליך</Link>
       </Button>
-      <form className="w-full flex justify-center">
-        <Button
-          type="submit"
-          size="lg"
-          formAction={async () => {
-            'use server';
-            // TODO: implement add to cart
-          }}
-          className="w-1/2 bg-secondary-foreground rounded-full hover:bg-amber-800 transition"
-        >
-          הוסיפי לסל
-        </Button>
-      </form>
+      <Button
+        asChild
+        size="lg"
+        className="w-1/2 bg-secondary-foreground rounded-full hover:bg-amber-800 transition"
+      >
+        <Link href="/cart">הוסיפי לסל</Link>
+      </Button>
     </div>
   );
 }

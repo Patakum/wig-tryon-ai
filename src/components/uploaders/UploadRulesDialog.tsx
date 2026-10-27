@@ -47,7 +47,7 @@ export default function UploadRulesDialog({
           ) : null}
         </DialogHeader>
 
-        <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+        <ul className="list-disc space-y-2 ps-5 text-sm text-muted-foreground">
           {rules.map((rule) => (
             <li key={rule}>{rule}</li>
           ))}

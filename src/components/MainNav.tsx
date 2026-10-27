@@ -1,49 +1,48 @@
 import Link from 'next/link';
 import { Heart, History, Search, ShoppingBag } from 'lucide-react';
-import AuthButton from '@/src/components/AuthButton';
-import IconButton from '@/src/components/IconButton';
+import NavDrawer from '@/src/components/NavDrawer';
 
-const ICON_SIZE = 20;
+const LINK_CLASS =
+  'flex size-11 items-center justify-center text-gray-800 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 rounded-full';
+const ICON_SIZE = 22;
 
-export default function MainNav() {
+type MainNavProps = {
+  // "full" shows the quick-access icons (home page); "compact" keeps the
+  // header clean and leaves everything else to the menu drawer.
+  variant?: 'full' | 'compact';
+};
+
+export default function MainNav({ variant = 'compact' }: MainNavProps) {
   return (
-    <nav aria-label="Main actions">
-      <ul className="flex items-center gap-4 list-none">
+    <nav aria-label="פעולות מהירות">
+      <ul className="flex items-center list-none">
         <li>
-          <IconButton label="Shopping bag">
-            <ShoppingBag size={ICON_SIZE} />
-          </IconButton>
+          <NavDrawer />
         </li>
         <li>
-          <Link
-            href="/favorites"
-            aria-label="Favorites"
-            className="text-gray-800 hover:scale-110 transition-transform inline-block"
-          >
-            <Heart size={ICON_SIZE} />
+          <Link href="/catalog#search" aria-label="חיפוש" className={LINK_CLASS}>
+            <Search size={ICON_SIZE} aria-hidden="true" />
           </Link>
         </li>
-        <li>
-          <Link
-            href="/my-try-ons"
-            aria-label="My try-ons"
-            className="text-gray-800 hover:scale-110 transition-transform inline-block"
-          >
-            <History size={ICON_SIZE} />
-          </Link>
-        </li>
-        <li>
-          <AuthButton />
-        </li>
-        <li>
-          <Link
-            href="/catalog#search"
-            aria-label="Search"
-            className="text-gray-800 hover:scale-110 transition-transform inline-block"
-          >
-            <Search size={ICON_SIZE} />
-          </Link>
-        </li>
+        {variant === 'full' && (
+          <>
+            <li>
+              <Link href="/favorites" aria-label="המועדפים שלי" className={LINK_CLASS}>
+                <Heart size={ICON_SIZE} aria-hidden="true" />
+              </Link>
+            </li>
+            <li>
+              <Link href="/my-try-ons" aria-label="הניסיונות שלי" className={LINK_CLASS}>
+                <History size={ICON_SIZE} aria-hidden="true" />
+              </Link>
+            </li>
+            <li>
+              <Link href="/cart" aria-label="עגלה" className={LINK_CLASS}>
+                <ShoppingBag size={ICON_SIZE} aria-hidden="true" />
+              </Link>
+            </li>
+          </>
+        )}
       </ul>
     </nav>
   );
