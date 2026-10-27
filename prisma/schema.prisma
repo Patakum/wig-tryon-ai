@@ -112,6 +112,7 @@ model Generation {
   wigId             String
   resultImageUrl    String?
   resultPublicId    String?
+  failureReason     String?
   adminCanSeeSelfie Boolean   @default(true)
   adminCanSeeResult Boolean   @default(true)
   status            String

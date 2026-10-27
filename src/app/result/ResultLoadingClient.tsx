@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/src/lib/utils';
 import WigMarquee from '@/src/components/generationLoader/WigMarquee';
@@ -30,6 +31,24 @@ const TIPS = [
 ];
 
 const TOTAL_SECONDS = 65;
+const SLOW_AFTER_SECONDS = 120;
+
+// Shown when generation fails. The admin is alerted automatically (see the
+// admin alerts page), so the customer is told to simply try again later.
+const FAILURE_COPY: Record<string, { title: string; body: string }> = {
+  quota: {
+    title: 'השירות לא זמין כרגע',
+    body: 'הגענו למגבלת השימוש של שירות יצירת התמונות. עדכנו את צוות האתר. נסי שוב מאוחר יותר.',
+  },
+  timeout: {
+    title: 'זה לוקח יותר מדי זמן',
+    body: 'היצירה לא הסתיימה בזמן. עדכנו את צוות האתר. נסי שוב מאוחר יותר.',
+  },
+  error: {
+    title: 'משהו השתבש',
+    body: 'לא הצלחנו ליצור את התוצאה. נסי שוב, ואם זה חוזר, נסי שוב מאוחר יותר.',
+  },
+};
 
 export default function ResultLoadingClient({
   generationId,
@@ -42,6 +61,7 @@ export default function ResultLoadingClient({
   const [tipVisible, setTipVisible] = useState(true);
   const done = false;
   const [failed, setFailed] = useState(false);
+  const [failureReason, setFailureReason] = useState<string>('error');
   const startRef = useRef<number>(0);
 
   const progressValue = done
@@ -92,6 +112,7 @@ export default function ResultLoadingClient({
           clearInterval(pollInterval);
           window.location.href = `/result?id=${generationId}`;
         } else if (data.status === 'failed') {
+          setFailureReason(data.failureReason ?? 'error');
           clearInterval(timerInterval);
           clearInterval(tipInterval);
           clearInterval(pollInterval);
@@ -110,16 +131,23 @@ export default function ResultLoadingClient({
     };
   }, [generationId, router]);
 
+  const failureCopy = FAILURE_COPY[failureReason] ?? FAILURE_COPY.error;
+
   if (failed) {
     return (
       <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4 text-center p-8">
-        <p className="text-xl font-medium">משהו השתבש</p>
-        <p className="text-sm text-muted-foreground">
-          לא הצלחנו ליצור את התוצאה. אנא נסה שוב.
+        <p className="text-xl font-medium">{failureCopy.title}</p>
+        <p className="max-w-xs text-sm text-muted-foreground">
+          {failureCopy.body}
         </p>
-        <Button asChild>
-          <a href={`/upload?wigId=${wigId}`}>נסה שוב</a>
-        </Button>
+        <div className="flex gap-3">
+          <Button asChild>
+            <a href={`/upload?wigId=${wigId}`}>נסי שוב</a>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/">לדף הבית</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -164,8 +192,10 @@ export default function ResultLoadingClient({
           />
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          {done
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {elapsed >= SLOW_AFTER_SECONDS
+            ? 'זה לוקח יותר מהרגיל. עוד רגע... אפשר להישאר בעמוד.'
+            : done
             ? 'מוכן! מעביר לתוצאה...'
             : remaining > 0
               ? `כ-${remaining} שניות נותרו`

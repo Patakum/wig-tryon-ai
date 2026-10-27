@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function WigDetailError({
+export default function AppError({
   error,
   reset,
 }: {
@@ -19,7 +19,7 @@ export default function WigDetailError({
   return (
     <main className="min-h-screen bg-white flex flex-col items-center justify-center gap-6 px-6 text-center">
       <h1 className="text-2xl font-semibold text-gray-900">משהו השתבש</h1>
-      <p className="text-gray-500 text-sm">לא הצלחנו לטעון את הפאה. אנא נסי שוב.</p>
+      <p className="text-gray-500 text-sm">לא הצלחנו לטעון את העמוד. נסי שוב, ואם זה חוזר, נסי שוב מאוחר יותר.</p>
       <div className="flex gap-3">
         <button
           type="button"

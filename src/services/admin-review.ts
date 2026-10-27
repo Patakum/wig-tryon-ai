@@ -139,3 +139,55 @@ export async function updateAdminVisibility(
     select: { adminCanSeeSelfie: true, adminCanSeeResult: true },
   });
 }
+
+const ALERT_WINDOW_DAYS = 7;
+
+export const FAILURE_LABELS: Record<string, string> = {
+  quota: 'Generation credits ran out',
+  timeout: 'Generation took too long',
+  error: 'Generation failed',
+};
+
+// Failed generations from the last week, so an admin notices exhausted
+// provider credits or stuck jobs without a customer having to report them.
+// The list carries no customer details or image links.
+export async function getGenerationAlerts() {
+  const since = new Date(Date.now() - ALERT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  const [groups, recent] = await Promise.all([
+    prisma.generation.groupBy({
+      by: ['failureReason'],
+      where: { status: 'failed', createdAt: { gte: since } },
+      _count: { _all: true },
+    }),
+    prisma.generation.findMany({
+      where: { status: 'failed', createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        failureReason: true,
+        createdAt: true,
+        wig: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  const counts = { quota: 0, timeout: 0, error: 0 };
+  for (const group of groups) {
+    const key = (group.failureReason ?? 'error') as keyof typeof counts;
+    counts[key in counts ? key : 'error'] += group._count._all;
+  }
+
+  return {
+    windowDays: ALERT_WINDOW_DAYS,
+    counts,
+    total: counts.quota + counts.timeout + counts.error,
+    recent: recent.map((row) => ({
+      id: row.id,
+      reason: row.failureReason ?? 'error',
+      createdAt: row.createdAt,
+      wigName: row.wig.name,
+    })),
+  };
+}
