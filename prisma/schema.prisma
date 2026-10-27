@@ -79,6 +79,7 @@ model Photo {
   guestSessionId String?
   imageUrl       String
   createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
   user           User?         @relation(fields: [userId], references: [id])
   guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
 
@@ -88,14 +89,15 @@ model Photo {
 }
 
 model Generation {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String?
   guestSessionId String?
   photoId        String
   wigId          String
   resultImageUrl String?
   status         String
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
 
   user         User?         @relation(fields: [userId], references: [id])
   guestSession GuestSession? @relation(fields: [guestSessionId], references: [id])

@@ -117,7 +117,50 @@ export function uploadGeneration(file: string): Promise<UploadResult> {
  * Delete an image from Cloudinary by its public ID.
  */
 export async function deleteImage(publicId: string): Promise<void> {
-  await cloudinary.uploader.destroy(publicId);
+  assertCloudinaryConfig();
+  const result = await cloudinary.uploader.destroy(publicId, {
+    invalidate: true,
+  });
+
+  // A missing asset is already deleted, which keeps retries safe.
+  if (result.result !== 'ok' && result.result !== 'not found') {
+    throw new Error('Cloudinary deletion failed');
+  }
+}
+
+/**
+ * Extract the public ID from a Cloudinary delivery URL, or null if the URL
+ * is not one of ours.
+ */
+export function getPublicIdFromUrl(imageUrl: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(imageUrl);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com') {
+    return null;
+  }
+
+  const segments = url.pathname.split('/').filter(Boolean);
+  const uploadIndex = segments.indexOf('upload');
+
+  if (uploadIndex === -1) {
+    return null;
+  }
+
+  const rest = segments.slice(uploadIndex + 1);
+  const versionIndex = rest.findIndex((segment) => /^v\d+$/.test(segment));
+  const idSegments = versionIndex === -1 ? rest : rest.slice(versionIndex + 1);
+
+  if (idSegments.length === 0) {
+    return null;
+  }
+
+  const decoded = idSegments.map(decodeURIComponent).join('/');
+  return decoded.replace(/\.[A-Za-z0-9]+$/, '');
 }
 
 /**

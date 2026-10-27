@@ -28,6 +28,7 @@ export async function getHistoryForUser(
   const rows = await prisma.generation.findMany({
     where: {
       userId,
+      deletedAt: null,
       // Pending jobs past the timeout are treated as failed and hidden.
       OR: [
         { status: 'completed' },
@@ -76,6 +77,7 @@ export async function getHistoryDetail(
       guestSessionId: true,
       photoId: true,
       status: true,
+      deletedAt: true,
       resultImageUrl: true,
       createdAt: true,
       wig: {
@@ -88,7 +90,7 @@ export async function getHistoryDetail(
     },
   });
 
-  if (!generation) {
+  if (!generation || generation.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
