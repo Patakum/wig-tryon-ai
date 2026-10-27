@@ -21,7 +21,7 @@
 - Validate admin access server-side with `requireAdmin()` from `src/lib/api/auth.ts` before any admin mutation.
 
 ### Auth & Privacy
-- Never trust client-supplied user IDs. Always derive identity from the session server-side via `getServerSession(authOptions)`.
+- Never trust client-supplied user IDs. Always derive identity from the session server-side via Better Auth (`getSession()` in `src/lib/auth.ts`, or `getOptionalViewer()` / `requireSessionUser()` from `src/lib/api/auth.ts`).
 - Enforce ownership on `Photo` and `Generation` reads/writes — return `403` if `resource.userId` doesn't match the session user.
 - Admin-only routes must check `session.user.role === "admin"` server-side. Client-side route guards alone are not sufficient.
 
