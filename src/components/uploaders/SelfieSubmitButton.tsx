@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import axios from 'axios';
+import Link from 'next/link';
 import { validateFaceInImage } from '@/src/lib/face-detection';
 import { Button } from '@/src/components/ui/button';
 
@@ -20,6 +21,7 @@ export default function SelfieSubmitButton({
 }: SelfieSubmitButtonProps) {
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [consented, setConsented] = useState(false);
 
   const handleSubmit = async () => {
     setError(null);
@@ -39,6 +41,7 @@ export default function SelfieSubmitButton({
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('consent', 'true');
       const res = await axios.post('/api/upload', formData);
       onSuccess(res.data.photoId as string);
     } catch (err) {
@@ -54,9 +57,28 @@ export default function SelfieSubmitButton({
   return (
     <div className="flex flex-col gap-2">
       {error && <p className="text-sm text-destructive">{error}</p>}
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={consented}
+          onChange={(e) => setConsented(e.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          אני מאשרת שהתמונה שלי תעובד כמתואר ב
+          <Link
+            href="/privacy"
+            target="_blank"
+            className="underline"
+          >
+            מדיניות הפרטיות
+          </Link>
+          .
+        </span>
+      </label>
       <Button
         onClick={handleSubmit}
-        disabled={status !== 'idle'}
+        disabled={status !== 'idle' || !consented}
         size="lg"
         className="w-full"
       >

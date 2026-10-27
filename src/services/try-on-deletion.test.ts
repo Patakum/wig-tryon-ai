@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     generation: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       count: vi.fn(),
       update: vi.fn(),
     },
@@ -20,7 +21,7 @@ vi.mock('@/src/lib/cloudinary-utils', async (importOriginal) => ({
   deleteImage: mocks.deleteImage,
 }));
 
-import { deleteTryOn } from '@/src/services/try-on-deletion';
+import { deleteAllTryOns, deleteTryOn } from '@/src/services/try-on-deletion';
 
 const owner = { userId: 'user-a', guestSessionId: null };
 
@@ -162,5 +163,37 @@ describe('deleteTryOn', () => {
 
     mocks.prisma.generation.findUnique.mockResolvedValue(null);
     await expect(deleteTryOn('g1', owner)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('deleteAllTryOns', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.prisma.$transaction.mockResolvedValue([]);
+    mocks.prisma.generation.count.mockResolvedValue(0);
+  });
+
+  it('requires sign-in', async () => {
+    await expect(
+      deleteAllTryOns({ userId: null, guestSessionId: 'guest' }),
+    ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('only targets the signed-in user’s finished try-ons and reports progress', async () => {
+    mocks.prisma.generation.findMany.mockResolvedValue([{ id: 'g1' }, { id: 'g2' }]);
+    mocks.prisma.generation.findUnique.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === 'g1' ? generation : { ...generation, id: 'g2', status: 'pending' },
+    );
+    mocks.prisma.generation.count.mockResolvedValue(5);
+
+    const result = await deleteAllTryOns(owner);
+
+    expect(mocks.prisma.generation.findMany.mock.calls[0][0].where).toEqual({
+      userId: 'user-a',
+      deletedAt: null,
+      status: { not: 'pending' },
+    });
+    expect(result).toEqual({ deleted: 1, failed: 1, remaining: 5 });
   });
 });

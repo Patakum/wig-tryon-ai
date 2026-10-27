@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Facebook, Twitter, Globe } from 'lucide-react';
 import { Divider } from '@/src/components/ui/divider';
 import { prisma } from '@/src/lib/prisma';
@@ -94,7 +95,12 @@ export default function Footer() {
       <ContactSection />
       <SocialSection />
       <Divider />
-      <p className="text-xs text-stone-600 text-end">© {new Date().getFullYear()} Wig Try-On</p>
+      <div className="flex items-center justify-between text-xs text-stone-600">
+        <Link href="/privacy" className="underline hover:text-stone-900">
+          מדיניות פרטיות
+        </Link>
+        <p>© {new Date().getFullYear()} Wig Try-On</p>
+      </div>
     </footer>
   );
 }
