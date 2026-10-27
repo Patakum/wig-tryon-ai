@@ -45,6 +45,20 @@ export default function AdminPage() {
             </Link>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Manage Wigs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Edit wig details and manage up to five photos per wig.
+            </p>
+            <Link href="/admin/wigs" className="text-sm font-medium underline">
+              Open wig list
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

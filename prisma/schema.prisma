@@ -58,6 +58,19 @@ model Wig {
 
   generations Generation[]
   favorites   Favorite[]
+  photos      WigPhoto[]
+}
+
+model WigPhoto {
+  id        String   @id @default(cuid())
+  wigId     String
+  imageUrl  String
+  position  Int
+  createdAt DateTime @default(now())
+
+  wig Wig @relation(fields: [wigId], references: [id], onDelete: Cascade)
+
+  @@index([wigId, position])
 }
 
 model Favorite {
