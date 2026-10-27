@@ -34,6 +34,10 @@ export const historyQuerySchema = z.object({
 
 export { wigUpdateSchema } from '@/src/lib/wig-schema';
 
+export const archiveWigSchema = z.object({
+  archived: z.boolean(),
+});
+
 export const movePhotoSchema = z.object({
   direction: z.enum(['up', 'down']),
 });

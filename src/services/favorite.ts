@@ -26,7 +26,7 @@ export async function isFavorite(userId: string, wigId: string) {
 
 export async function getFavoriteWigs(userId: string) {
   const favorites = await prisma.favorite.findMany({
-    where: { userId },
+    where: { userId, wig: { archivedAt: null } },
     orderBy: { createdAt: 'desc' },
     select: {
       wig: { select: { id: true, name: true, imageUrl: true, price: true } },

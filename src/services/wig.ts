@@ -57,6 +57,7 @@ export async function createWig(data: {
 
 export async function getLatestWigs(limit = 8) {
   return prisma.wig.findMany({
+    where: { archivedAt: null },
     orderBy: { createdAt: 'desc' },
     take: limit,
     select: { id: true, name: true, imageUrl: true, price: true },
@@ -65,8 +66,16 @@ export async function getLatestWigs(limit = 8) {
 
 export async function getWigs() {
   return prisma.wig.findMany({
+    where: { archivedAt: null },
     orderBy: { createdAt: 'desc' },
     select: { id: true, name: true, imageUrl: true, price: true },
+  });
+}
+
+export async function getWigsForAdmin() {
+  return prisma.wig.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true, imageUrl: true, archivedAt: true },
   });
 }
 
@@ -79,6 +88,7 @@ export async function getWig(wigId: string) {
       imageUrl: true, 
       price: true, 
       description: true,
+      archivedAt: true,
       photos: {
         orderBy: { position: 'asc' },
         select: { id: true, imageUrl: true },
@@ -107,6 +117,10 @@ export async function getWigOrThrow(wigId: string) {
 
   if (!wig) {
     throwApiError(404, 'NOT_FOUND', 'Wig not found');
+  }
+
+  if (wig.archivedAt) {
+    throwApiError(409, 'WIG_UNAVAILABLE', 'This wig is no longer available');
   }
 
   return wig;

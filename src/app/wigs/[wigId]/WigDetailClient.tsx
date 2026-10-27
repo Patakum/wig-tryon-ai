@@ -10,6 +10,7 @@ type Props = {
   initialFavorited: boolean;
   isSignedIn: boolean;
   autoFavorite: boolean;
+  canFavorite?: boolean;
 };
 
 async function setFavorite(wigId: string, favorited: boolean) {
@@ -29,6 +30,7 @@ export default function WigDetailClient({
   initialFavorited,
   isSignedIn,
   autoFavorite,
+  canFavorite = true,
 }: Props) {
   const router = useRouter();
   const [isFavorited, setIsFavorited] = useState(initialFavorited);
@@ -55,7 +57,7 @@ export default function WigDetailClient({
     }
     autoFavoriteHandled.current = true;
 
-    if (isSignedIn && !initialFavorited) {
+    if (canFavorite && isSignedIn && !initialFavorited) {
       void applyFavorite(true);
     }
     router.replace(`/wigs/${wigId}`);
@@ -75,6 +77,7 @@ export default function WigDetailClient({
   return (
     <div className="absolute top-0 left-0 right-0 z-10">
       <div className="flex items-center justify-between px-2 py-2 transition">
+        {canFavorite ? (
         <button
           type="button"
           onClick={handleFavoriteClick}
@@ -97,6 +100,9 @@ export default function WigDetailClient({
             </svg>
           </span>
         </button>
+        ) : (
+          <span className="p-2" aria-hidden="true" />
+        )}
         <div className="flex items-center justify-center gap-1">
           <Logo />
           <button

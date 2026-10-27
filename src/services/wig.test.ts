@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
 
 const mocks = vi.hoisted(() => ({
-  prisma: { wig: { findUnique: vi.fn(), create: vi.fn() } },
+  prisma: { wig: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn() } },
 }));
 
 vi.mock('@/src/lib/prisma', () => ({ prisma: mocks.prisma }));
@@ -14,6 +14,8 @@ import {
   assertValidWigImage,
   createWig,
   getWig,
+  getWigOrThrow,
+  getWigs,
   MAX_WIG_IMAGE_BYTES,
 } from '@/src/services/wig';
 
@@ -100,6 +102,28 @@ describe('wig photos', () => {
     const wig = await getWig('w1');
 
     expect(wig?.photos).toEqual([{ id: 'main', imageUrl: 'https://x/a.jpg' }]);
+  });
+
+  it('hides archived wigs from the catalog query', async () => {
+    mocks.prisma.wig.findMany.mockResolvedValue([]);
+
+    await getWigs();
+
+    expect(mocks.prisma.wig.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { archivedAt: null } }),
+    );
+  });
+
+  it('refuses new use of an archived wig', async () => {
+    mocks.prisma.wig.findUnique.mockResolvedValue({
+      id: 'w1',
+      archivedAt: new Date(),
+    });
+
+    await expect(getWigOrThrow('w1')).rejects.toMatchObject({
+      status: 409,
+      code: 'WIG_UNAVAILABLE',
+    });
   });
 
   it('returns null for an unknown wig', async () => {
