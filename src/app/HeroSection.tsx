@@ -29,8 +29,15 @@ export default function HeroSection() {
         <MainNav />
       </nav>
 
-      <div className="absolute top-1/8 right-4 z-10 text-center">
-        <h1 className="text-xl md:text-3xl font-bold tracking-wider">
+      {/* Soft dark fade behind the headline only, so white text stays readable
+          on any photo without dimming the nav icons above it. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 z-0 h-[48%] bg-[radial-gradient(ellipse_at_72%_40%,rgba(0,0,0,0.62)_0%,rgba(0,0,0,0.35)_40%,transparent_72%)]"
+      />
+
+      <div className="absolute top-[14%] right-4 z-10 text-center">
+        <h1 className="text-3xl md:text-5xl font-bold tracking-wider text-white drop-shadow-md">
           TRY WIGS
           <br />
           IN REAL TIME
