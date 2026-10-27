@@ -73,17 +73,10 @@ export default async function TryOnDetailPage({
 
       <section className="mt-4">
         <h2 className="text-sm font-semibold">המשוב שלי</h2>
-        {detail.feedbacks.length > 0 ? (
-          <ul className="mt-1 list-none space-y-2">
-            {detail.feedbacks.map((feedback) => (
-              <li key={feedback.id} className="rounded bg-gray-50 p-2 text-sm">
-                {feedback.message}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Feedback id={detail.id} />
-        )}
+        <Feedback
+          id={detail.id}
+          initialMessage={detail.feedback?.message ?? ''}
+        />
       </section>
     
       <DeleteTryOnButton id={detail.id} />

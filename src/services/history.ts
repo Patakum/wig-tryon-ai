@@ -46,7 +46,7 @@ export async function getHistoryForUser(
       status: true,
       createdAt: true,
       wig: { select: { name: true } },
-      _count: { select: { feedbacks: true } },
+      feedback: { select: { id: true } },
     },
   });
 
@@ -59,7 +59,7 @@ export async function getHistoryForUser(
       status: row.status === 'completed' ? 'completed' : 'pending',
       createdAt: row.createdAt.toISOString(),
       wigName: row.wig.name,
-      hasFeedback: row._count.feedbacks > 0,
+      hasFeedback: row.feedback !== null,
     })),
     nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null,
   };
@@ -83,9 +83,8 @@ export async function getHistoryDetail(
       wig: {
         select: { id: true, name: true, imageUrl: true, price: true },
       },
-      feedbacks: {
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, message: true, createdAt: true },
+      feedback: {
+        select: { id: true, message: true, updatedAt: true },
       },
     },
   });

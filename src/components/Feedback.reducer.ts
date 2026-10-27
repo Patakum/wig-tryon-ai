@@ -5,12 +5,9 @@ export type FeedbackState = {
   error: string;
 };
 
-export const initialFeedbackState: FeedbackState = {
-  message: '',
-  sending: false,
-  success: false,
-  error: '',
-};
+export function createInitialFeedbackState(message = ''): FeedbackState {
+  return { message, sending: false, success: false, error: '' };
+}
 
 export type FeedbackAction =
   | { type: 'SET_MESSAGE'; payload: string }
@@ -28,7 +25,7 @@ export function feedbackReducer(
     case 'SEND_START':
       return { ...state, sending: true, success: false, error: '' };
     case 'SEND_SUCCESS':
-      return { ...state, sending: false, success: true, message: '' };
+      return { ...state, sending: false, success: true };
     case 'SEND_ERROR':
       return { ...state, sending: false, error: action.payload };
   }
