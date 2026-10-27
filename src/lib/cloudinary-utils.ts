@@ -1,5 +1,11 @@
 import cloudinary, { assertCloudinaryConfig } from './cloudinary';
 import { throwApiError } from '@/src/lib/api/errors';
+import {
+  deleteFakeImage,
+  getFakeImage,
+  isFakeProviders,
+  putFakeImage,
+} from '@/src/lib/fake-providers';
 
 export type CloudinaryFolder = 'wig-ai' | 'wig-ai/wigs' | 'generations';
 
@@ -46,6 +52,19 @@ function resolveFetchUrl(ref: StoredImageRef): string {
 }
 
 export async function fetchStoredImage(ref: StoredImageRef) {
+  if (isFakeProviders() && ref.publicId) {
+    const fake = getFakeImage(ref.publicId);
+
+    if (!fake) {
+      throwApiError(502, 'IMAGE_UNAVAILABLE', 'Image retrieval failed');
+    }
+
+    return {
+      body: new Response(new Uint8Array(fake.buffer)).body as ReadableStream<Uint8Array>,
+      contentType: fake.contentType,
+    };
+  }
+
   return fetchCloudinaryImage(resolveFetchUrl(ref));
 }
 
@@ -162,6 +181,10 @@ export async function uploadPrivateImageFromBuffer(
   buffer: Buffer,
   folder: CloudinaryFolder,
 ): Promise<UploadResult> {
+  if (isFakeProviders()) {
+    return putFakeImage(buffer, folder);
+  }
+
   assertCloudinaryConfig();
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -196,6 +219,12 @@ export function uploadPrivateSelfie(buffer: Buffer): Promise<UploadResult> {
  * Upload a generation result (base64 data URI) as a private asset.
  */
 export async function uploadGeneration(file: string): Promise<UploadResult> {
+  if (isFakeProviders()) {
+    const base64 = file.slice(file.indexOf(',') + 1);
+
+    return putFakeImage(Buffer.from(base64, 'base64'), 'generations');
+  }
+
   assertCloudinaryConfig();
   const result = await cloudinary.uploader.upload(file, {
     folder: 'generations',
@@ -212,6 +241,11 @@ export async function deleteImage(
   publicId: string,
   type: CloudinaryDeliveryType = 'upload',
 ): Promise<void> {
+  if (isFakeProviders()) {
+    deleteFakeImage(publicId);
+    return;
+  }
+
   assertCloudinaryConfig();
   const result = await cloudinary.uploader.destroy(publicId, {
     invalidate: true,

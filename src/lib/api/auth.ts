@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { getSession } from '@/src/lib/auth';
+import { isFakeProviders } from '@/src/lib/fake-providers';
 import { prisma } from '@/src/lib/prisma';
 import { throwApiError } from '@/src/lib/api/errors';
 import { transferGuestOwnershipToUser } from '@/src/services/photo';
@@ -99,7 +100,7 @@ export async function getUploadViewer(): Promise<ViewerIdentity> {
   const guestSession = await createGuestSession();
   cookieStore.set(GUEST_SESSION_COOKIE, guestSession.token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production' && !isFakeProviders(),
     sameSite: 'lax',
     path: '/',
     maxAge: GUEST_SESSION_MAX_AGE,

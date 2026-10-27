@@ -25,11 +25,13 @@ export default function Feedback({
   const [hasSaved, setHasSaved] = useState(initialMessage !== '');
   const draftKey = `wig-feedback-draft:${id}`;
 
+  // Restore a draft saved before the sign-in redirect. It is kept until the
+  // feedback is actually submitted: signing in loads this page more than
+  // once, and removing the draft on the first load lost it on the next.
   useEffect(() => {
     const draft = sessionStorage.getItem(draftKey);
     if (draft) {
       dispatch({ type: 'SET_MESSAGE', payload: draft });
-      sessionStorage.removeItem(draftKey);
     }
   }, [draftKey]);
 
@@ -46,6 +48,7 @@ export default function Feedback({
 
       dispatch({ type: 'SEND_SUCCESS' });
       setHasSaved(true);
+      sessionStorage.removeItem(draftKey);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         try {
