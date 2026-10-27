@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Heart, Search, ShoppingBag } from 'lucide-react';
+import { Heart, History, Search, ShoppingBag } from 'lucide-react';
 import AuthButton from '@/src/components/AuthButton';
 import IconButton from '@/src/components/IconButton';
 
@@ -21,6 +21,15 @@ export default function MainNav() {
             className="text-gray-800 hover:scale-110 transition-transform inline-block"
           >
             <Heart size={ICON_SIZE} />
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/my-try-ons"
+            aria-label="My try-ons"
+            className="text-gray-800 hover:scale-110 transition-transform inline-block"
+          >
+            <History size={ICON_SIZE} />
           </Link>
         </li>
         <li>

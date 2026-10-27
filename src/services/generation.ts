@@ -9,6 +9,7 @@ import { getPhotoForViewer } from '@/src/services/photo';
 import { segmentHair } from '@/src/lib/replicate';
 import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
 import { requireOwner } from '@/src/services/ownership';
+import { PENDING_TIMEOUT_MS } from '@/src/services/generation-limits';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
 type GenerationCreationAccess = {
@@ -19,7 +20,6 @@ type GenerationCreationAccess = {
 
 type GenerationDb = Pick<PrismaClient, 'generation'>;
 
-const PENDING_TIMEOUT_MS = 10 * 60 * 1000;
 const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAILY_LIMIT = 3;
 

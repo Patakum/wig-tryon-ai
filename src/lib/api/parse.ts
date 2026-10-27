@@ -24,6 +24,10 @@ export const favoriteSchema = z.object({
   wigId: z.string().min(1, 'wigId is required'),
 });
 
+export const historyQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+});
+
 export async function parseJsonBody<TSchema extends z.ZodTypeAny>(
   req: Request,
   schema: TSchema,
