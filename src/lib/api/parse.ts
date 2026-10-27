@@ -20,6 +20,10 @@ export const feedbackSchema = z.object({
   message: z.string().trim().min(1, 'message is required'),
 });
 
+export const favoriteSchema = z.object({
+  wigId: z.string().min(1, 'wigId is required'),
+});
+
 export async function parseJsonBody<TSchema extends z.ZodTypeAny>(
   req: Request,
   schema: TSchema,
