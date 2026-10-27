@@ -17,7 +17,7 @@ export default function AuthButton({
   if (isPending) {
     return (
       <IconButton label="Loading..." className={className}>
-        <LoaderIcon size={size} className="animate-spin" />;
+        <LoaderIcon size={size} className="animate-spin" />
       </IconButton>
     );
   }
