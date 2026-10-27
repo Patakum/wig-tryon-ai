@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import Logo from '@/src/components/Logo';
 
 type Props = {
@@ -115,7 +115,7 @@ export default function WigDetailClient({
             className={CHIP}
             aria-label="חזרה"
           >
-            <ChevronLeft size={24} aria-hidden="true" />
+            <ChevronRight size={24} aria-hidden="true" />
           </button>
         </div>
       </div>
