@@ -13,6 +13,7 @@ type Props = {
     name: string;
     description: string | null;
     price: number | null;
+    archived: boolean;
   };
   photos: { id: string; imageUrl: string; position: number }[];
   maxPhotos: number;
@@ -92,6 +93,29 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
     void run(
       () => fetch(`${basePath}/photos`, { method: 'POST', body: formData }),
       'Photo added.',
+    );
+  }
+
+  function toggleArchive() {
+    const archive = !wig.archived;
+
+    if (
+      archive &&
+      !window.confirm(
+        'Archive this wig? It will be hidden from the catalog and new try-ons, but past try-ons keep it.',
+      )
+    ) {
+      return;
+    }
+
+    void run(
+      () =>
+        fetch(`${basePath}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ archived: archive }),
+        }),
+      archive ? 'Wig archived.' : 'Wig restored.',
     );
   }
 
@@ -231,6 +255,25 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
             />
           </div>
         )}
+      </section>
+
+      <section className="space-y-2 border-t pt-6">
+        <h2 className="text-base font-semibold">
+          {wig.archived ? 'Archived' : 'Availability'}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {wig.archived
+            ? 'This wig is hidden from shoppers. Past try-ons still show it.'
+            : 'Archiving hides the wig from the catalog, favorites and new try-ons.'}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={toggleArchive}
+        >
+          {wig.archived ? 'Restore wig' : 'Archive wig'}
+        </Button>
       </section>
 
       {message && (

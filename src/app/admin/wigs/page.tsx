@@ -1,10 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent } from '@/src/components/ui/card';
-import { getWigs } from '@/src/services/wig';
+import { getWigsForAdmin } from '@/src/services/wig';
 
 export default async function AdminWigsPage() {
-  const wigs = await getWigs();
+  const wigs = await getWigsForAdmin();
 
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-6">
@@ -31,7 +31,14 @@ export default async function AdminWigsPage() {
                     className="h-20 w-16 rounded object-cover"
                     unoptimized
                   />
-                  <span className="flex-1 font-medium">{wig.name}</span>
+                  <span className="flex-1 font-medium">
+                    {wig.name}
+                    {wig.archivedAt && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        (archived)
+                      </span>
+                    )}
+                  </span>
                   <Link
                     href={`/admin/wigs/${wig.id}`}
                     className="text-sm font-medium underline"

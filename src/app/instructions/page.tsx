@@ -22,7 +22,7 @@ export default async function InstructionsPage({
 
   const wig = await prisma.wig.findUnique({ where: { id: wigId } });
 
-  if (!wig) {
+  if (!wig || wig.archivedAt) {
     redirect('/catalog');
   }
 

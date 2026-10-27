@@ -49,12 +49,13 @@ model GuestSession {
 }
 
 model Wig {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
   imageUrl    String
   price       Float?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+  archivedAt  DateTime?
 
   generations Generation[]
   favorites   Favorite[]

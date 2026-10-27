@@ -37,6 +37,7 @@ export default async function AdminEditWigPage({
               name: wig.name,
               description: wig.description,
               price: wig.price,
+              archived: wig.archivedAt !== null,
             }}
             photos={wig.photos}
             maxPhotos={MAX_WIG_PHOTOS}

@@ -38,6 +38,10 @@ export const wigUpdateSchema = z.object({
   price: z.number().positive('Price must be positive').nullable(),
 });
 
+export const archiveWigSchema = z.object({
+  archived: z.boolean(),
+});
+
 export const movePhotoSchema = z.object({
   direction: z.enum(['up', 'down']),
 });

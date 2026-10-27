@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getOptionalUser } from '@/src/lib/api/auth';
 import { isFavorite } from '@/src/services/favorite';
@@ -91,6 +92,7 @@ export default async function WigDetailPage({
           initialFavorited,
           isSignedIn: user !== null,
           autoFavorite: favorite === '1',
+          canFavorite: !wig.archivedAt,
         }}
       />
       <ProductInfo
@@ -99,8 +101,17 @@ export default async function WigDetailPage({
         wigPrice={wig.price}
       />
       <div className="h-36"></div>
-    
-      <WigActionButtons wigId={wig.id} />
+
+      {wig.archivedAt ? (
+        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white px-6 py-4 text-center">
+          <p className="mb-2 text-sm text-gray-700">הפאה הזו כבר לא זמינה.</p>
+          <Link href="/catalog" className="text-sm underline">
+            לקטלוג הפאות
+          </Link>
+        </div>
+      ) : (
+        <WigActionButtons wigId={wig.id} />
+      )}
     </PageContainer>
   );
 }

@@ -18,6 +18,7 @@ export async function getWigForAdmin(wigId: string) {
       description: true,
       price: true,
       imageUrl: true,
+      archivedAt: true,
       photos: {
         orderBy: { position: 'asc' },
         select: { id: true, imageUrl: true, position: true },
@@ -47,6 +48,28 @@ export async function updateWigDetails(
       price: data.price,
     },
     select: { id: true, name: true, description: true, price: true },
+  });
+}
+
+// Archiving hides a wig from shoppers; old try-ons and history keep it.
+export async function setWigArchived(wigId: string, archived: boolean) {
+  const wig = await prisma.wig.findUnique({
+    where: { id: wigId },
+    select: { id: true, archivedAt: true },
+  });
+
+  if (!wig) {
+    throwApiError(404, 'NOT_FOUND', 'Wig not found');
+  }
+
+  if (Boolean(wig.archivedAt) === archived) {
+    return { id: wigId, archivedAt: wig.archivedAt };
+  }
+
+  return prisma.wig.update({
+    where: { id: wigId },
+    data: { archivedAt: archived ? new Date() : null },
+    select: { id: true, archivedAt: true },
   });
 }
 
