@@ -1,0 +1,2 @@
+# A textual merge corrupts the lockfile; conflict instead and run `pnpm install` to regenerate.
+pnpm-lock.yaml merge=binary
