@@ -61,6 +61,9 @@ export const wigFormSchema = z.object({
     (val) => (val === '' || val == null ? null : Number(val)),
     z.number().positive('Price must be positive').nullable(),
   ),
+  color: z.string().trim().optional(),
+  length: z.string().trim().optional(),
+  material: z.string().trim().optional(),
 });
 
 export type WigFormData = z.infer<typeof wigFormSchema>;
@@ -70,6 +73,9 @@ export function parseWigFormData(formData: FormData): WigFormData {
     name: formData.get('name'),
     description: formData.get('description') ?? undefined,
     price: formData.get('price'),
+    color: formData.get('color') ?? undefined,
+    length: formData.get('length') ?? undefined,
+    material: formData.get('material') ?? undefined,
   };
   const result = wigFormSchema.safeParse(raw);
   if (!result.success) {

@@ -1,4 +1,5 @@
 import OpenAI, { toFile } from 'openai';
+import type { PrismaClient } from '@prisma/client';
 import sharp from 'sharp';
 import { prisma } from '@/src/lib/prisma';
 import { uploadGeneration } from '@/src/lib/cloudinary-utils';
@@ -15,6 +16,17 @@ type GenerationCreationAccess = {
   requiresLoginToGenerateAgain: boolean;
   message: string | null;
 };
+
+type GenerationDb = Pick<PrismaClient, 'generation'>;
+
+const PENDING_TIMEOUT_MS = 10 * 60 * 1000;
+const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_DAILY_LIMIT = 3;
+
+function getDailyGenerationLimit(): number {
+  const parsed = Number.parseInt(process.env.GENERATION_DAILY_LIMIT ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_DAILY_LIMIT;
+}
 
 function getOpenAiClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -49,12 +61,13 @@ export async function getGenerationForViewer(
 
 export async function createFeedbackForGeneration(params: {
   generationId: string;
-  userId: string;
   viewer: ViewerIdentity;
   message: string;
 }) {
-  if (params.viewer.userId !== params.userId) {
-    throwApiError(403, 'FORBIDDEN', 'Forbidden');
+  const userId = params.viewer.userId;
+
+  if (!userId) {
+    throwApiError(401, 'UNAUTHORIZED', 'Sign in to leave feedback');
   }
 
   const generation = await prisma.generation.findUnique({
@@ -71,7 +84,7 @@ export async function createFeedbackForGeneration(params: {
   return prisma.feedback.create({
     data: {
       generationId: params.generationId,
-      userId: params.userId,
+      userId,
       message: params.message,
     },
   });
@@ -87,32 +100,43 @@ export async function createPendingGeneration(params: {
     getWigOrThrow(params.wigId),
   ]);
 
-  const generationAccess = await getGenerationCreationAccess(params.viewer);
-  if (!generationAccess.canCreateGeneration) {
-    if (generationAccess.requiresLoginToGenerateAgain) {
+  // Serialize check-and-create per owner so double taps and concurrent
+  // requests cannot both pass the allowance check.
+  const lockKey = params.viewer.userId ?? params.viewer.guestSessionId ?? '';
+
+  const generation = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const generationAccess = await getGenerationCreationAccess(
+      params.viewer,
+      tx,
+    );
+    if (!generationAccess.canCreateGeneration) {
+      if (generationAccess.requiresLoginToGenerateAgain) {
+        throwApiError(
+          409,
+          'GENERATION_LOGIN_REQUIRED',
+          generationAccess.message ?? 'To generate again, please sign in.',
+        );
+      }
+
       throwApiError(
         409,
-        'GENERATION_LOGIN_REQUIRED',
-        generationAccess.message ?? 'To generate again, please sign in.',
+        'GENERATION_LIMIT_REACHED',
+        generationAccess.message ??
+          'This account already has a pending generation.',
       );
     }
 
-    throwApiError(
-      409,
-      'GENERATION_LIMIT_REACHED',
-      generationAccess.message ??
-        'This account already has a pending generation.',
-    );
-  }
-
-  const generation = await prisma.generation.create({
-    data: {
-      userId: photo.userId,
-      guestSessionId: photo.userId ? null : photo.guestSessionId,
-      photoId: params.photoId,
-      wigId: params.wigId,
-      status: 'pending',
-    },
+    return tx.generation.create({
+      data: {
+        userId: photo.userId,
+        guestSessionId: photo.userId ? null : photo.guestSessionId,
+        photoId: params.photoId,
+        wigId: params.wigId,
+        status: 'pending',
+      },
+    });
   });
 
   return { generationId: generation.id };
@@ -120,13 +144,35 @@ export async function createPendingGeneration(params: {
 
 export async function getGenerationCreationAccess(
   viewer: ViewerIdentity,
+  db: GenerationDb = prisma,
 ): Promise<GenerationCreationAccess> {
+  const owner = viewer.userId
+    ? { userId: viewer.userId }
+    : viewer.guestSessionId
+      ? { guestSessionId: viewer.guestSessionId }
+      : null;
+
+  if (!owner) {
+    return {
+      canCreateGeneration: false,
+      requiresLoginToGenerateAgain: true,
+      message: 'Please sign in to generate a new image.',
+    };
+  }
+
+  // A job whose worker died would otherwise block its owner forever.
+  await db.generation.updateMany({
+    where: {
+      ...owner,
+      status: 'pending',
+      createdAt: { lt: new Date(Date.now() - PENDING_TIMEOUT_MS) },
+    },
+    data: { status: 'failed' },
+  });
+
   if (viewer.userId) {
-    const pendingGeneration = await prisma.generation.findFirst({
-      where: {
-        userId: viewer.userId,
-        status: 'pending',
-      },
+    const pendingGeneration = await db.generation.findFirst({
+      where: { userId: viewer.userId, status: 'pending' },
       select: { id: true },
     });
 
@@ -138,6 +184,23 @@ export async function getGenerationCreationAccess(
       };
     }
 
+    const dailyLimit = getDailyGenerationLimit();
+    const completedToday = await db.generation.count({
+      where: {
+        userId: viewer.userId,
+        status: 'completed',
+        createdAt: { gt: new Date(Date.now() - DAILY_WINDOW_MS) },
+      },
+    });
+
+    if (completedToday >= dailyLimit) {
+      return {
+        canCreateGeneration: false,
+        requiresLoginToGenerateAgain: false,
+        message: `You reached the daily limit of ${dailyLimit} generations. Try again tomorrow.`,
+      };
+    }
+
     return {
       canCreateGeneration: true,
       requiresLoginToGenerateAgain: false,
@@ -145,17 +208,11 @@ export async function getGenerationCreationAccess(
     };
   }
 
-  if (!viewer.guestSessionId) {
-    return {
-      canCreateGeneration: false,
-      requiresLoginToGenerateAgain: true,
-      message: 'Please sign in to generate a new image.',
-    };
-  }
-
-  const existingGuestGeneration = await prisma.generation.findFirst({
+  // Failed generations refund the guest allowance.
+  const existingGuestGeneration = await db.generation.findFirst({
     where: {
       guestSessionId: viewer.guestSessionId,
+      status: { not: 'failed' },
     },
     select: { id: true },
   });

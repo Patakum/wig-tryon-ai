@@ -8,8 +8,12 @@ const mocks = vi.hoisted(() => ({
       findUnique: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
+      updateMany: vi.fn(),
+      count: vi.fn(),
     },
     feedback: { create: vi.fn() },
+    $transaction: vi.fn(),
+    $executeRaw: vi.fn(),
   },
   openAiEdit: vi.fn(),
   segmentHair: vi.fn(),
@@ -150,6 +154,11 @@ describe('photo ownership', () => {
 describe('generation ownership and setup', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.prisma.$transaction.mockImplementation(
+      (callback: (tx: typeof mocks.prisma) => unknown) =>
+        callback(mocks.prisma),
+    );
+    mocks.prisma.generation.count.mockResolvedValue(0);
   });
 
   it('returns a generation to its owner', async () => {
@@ -195,7 +204,6 @@ describe('generation ownership and setup', () => {
     await expect(
       createFeedbackForGeneration({
         generationId: 'generation-1',
-        userId: 'customer-b',
         viewer: { userId: 'customer-b', guestSessionId: null },
         message: 'Feedback',
       }),
@@ -305,6 +313,70 @@ describe('generation ownership and setup', () => {
       requiresLoginToGenerateAgain: true,
       message: 'You already used your guest generation. Sign in to generate again.',
     });
+  });
+
+  it('does not count failed generations against the guest allowance', async () => {
+    mocks.prisma.generation.findFirst.mockResolvedValue(null);
+
+    await expect(
+      getGenerationCreationAccess({ userId: null, guestSessionId: 'guest-a' }),
+    ).resolves.toMatchObject({ canCreateGeneration: true });
+
+    expect(mocks.prisma.generation.findFirst).toHaveBeenCalledWith({
+      where: { guestSessionId: 'guest-a', status: { not: 'failed' } },
+      select: { id: true },
+    });
+  });
+
+  it('expires stale pending generations before checking the allowance', async () => {
+    mocks.prisma.generation.findFirst.mockResolvedValue(null);
+
+    await getGenerationCreationAccess({
+      userId: 'customer-a',
+      guestSessionId: null,
+    });
+
+    expect(mocks.prisma.generation.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'customer-a',
+        status: 'pending',
+        createdAt: { lt: expect.any(Date) },
+      },
+      data: { status: 'failed' },
+    });
+  });
+
+  it('blocks a signed-in user who reached the daily limit', async () => {
+    mocks.prisma.generation.findFirst.mockResolvedValue(null);
+    mocks.prisma.generation.count.mockResolvedValue(3);
+
+    await expect(
+      getGenerationCreationAccess({
+        userId: 'customer-a',
+        guestSessionId: null,
+      }),
+    ).resolves.toMatchObject({
+      canCreateGeneration: false,
+      requiresLoginToGenerateAgain: false,
+    });
+  });
+
+  it('takes a per-owner lock and creates nothing when the limit is reached', async () => {
+    mocks.prisma.photo.findUnique.mockResolvedValue(photo);
+    mocks.prisma.wig.findUnique.mockResolvedValue({ id: 'wig-1' });
+    mocks.prisma.generation.findFirst.mockResolvedValue(null);
+    mocks.prisma.generation.count.mockResolvedValue(3);
+
+    await expect(
+      createPendingGeneration({
+        photoId: 'photo-1',
+        wigId: 'wig-1',
+        viewer: { userId: 'customer-a', guestSessionId: null },
+      }),
+    ).rejects.toMatchObject({ status: 409, code: 'GENERATION_LIMIT_REACHED' });
+
+    expect(mocks.prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(mocks.prisma.generation.create).not.toHaveBeenCalled();
   });
 
   it('returns a pending-generation message for signed-in users', async () => {

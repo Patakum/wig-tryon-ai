@@ -1,9 +1,11 @@
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getWig } from '@/src/services/wig';
+import { getWigImages } from '@/src/services/wig-image';
 import WigDetailClient from './WigDetailClient';
 import WigActionButtons from './WigActionButtons';
 import PageContainer from '@/src/components/PageContainer';
+import WigGallery from '@/src/components/WigGallery';
 
 function ProductImage({ src, alt }: { src: string; alt: string }) {
   return (
@@ -26,13 +28,19 @@ function ProductInfo({
   name,
   description,
   wigPrice,
+  color,
+  length,
+  material,
 }: {
   name: string;
   description?: string | null;
   wigPrice?: number | string | null;
+  color?: string | null;
+  length?: string | null;
+  material?: string | null;
 }) {
   return (
-    <section className="px-2 pt-5 pb-4">
+    <section className="px-2 pt-5 pb-4 space-y-2">
       <h1 className="text-2xl font-semibold text-gray-900 mb-3">{name}</h1>
 
       <div className="flex items-center gap-2 mb-5">
@@ -44,15 +52,29 @@ function ProductInfo({
       </div>
 
       {description && (
-        <p className="text-gray-700 text-sm leading-relaxed mb-3">
+        <p className="text-gray-700 text-sm leading-relaxed">
           <span className="font-semibold">תיאור:</span> {description}
         </p>
       )}
 
-      <p className="text-gray-700 text-sm leading-relaxed">
-        <span className="font-semibold">אורך:</span> כ-40–45 ס&quot;מ (נופל מעל
-        החזה ומתחת לכתפיים).
-      </p>
+      {color && (
+        <p className="text-gray-700 text-sm leading-relaxed">
+          <span className="font-semibold">צבע:</span> {color}
+        </p>
+      )}
+
+      {length && (
+        <p className="text-gray-700 text-sm leading-relaxed">
+          <span className="font-semibold">אורך:</span> {length}
+        </p>
+      )}
+
+      {material && (
+        <p className="text-gray-700 text-sm leading-relaxed">
+          <span className="font-semibold">חומר:</span> {material}
+        </p>
+      )}
+
       {wigPrice && (
         <p className="text-gray-700 text-sm leading-relaxed">
           <span className="font-semibold">מחיר:</span> ₪{wigPrice}
@@ -74,13 +96,22 @@ export default async function WigDetailPage({
     notFound();
   }
 
+  const images = await getWigImages(wigId);
+
   return (
     <PageContainer className="p-4">
-      <ProductImage src={wig.imageUrl} alt={wig.name} />
+      {images.length > 0 ? (
+        <WigGallery images={images} />
+      ) : (
+        <ProductImage src={wig.imageUrl} alt={wig.name} />
+      )}
       <ProductInfo
         name={wig.name}
         description={wig.description}
         wigPrice={wig.price}
+        color={wig.color}
+        length={wig.length}
+        material={wig.material}
       />
       <div className="h-36"></div>
     
