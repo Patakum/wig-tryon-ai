@@ -4,9 +4,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/src/components/ui/card';
-import { WigFormClient } from './WigFormClient';
+import { WigForm } from '../WigForm';
 
-export default async function NewWigPage() {
+export default function NewWigPage() {
   return (
     <main className="mx-auto max-w-xl p-6">
       <Card>
@@ -15,7 +15,7 @@ export default async function NewWigPage() {
         </CardHeader>
 
         <CardContent>
-          <WigFormClient />
+          <WigForm />
         </CardContent>
       </Card>
     </main>

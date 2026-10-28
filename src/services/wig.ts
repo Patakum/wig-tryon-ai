@@ -9,18 +9,36 @@ export async function uploadWigReferenceImage(file: File): Promise<string> {
   return secureUrl;
 }
 
-export async function createWig(data: {
+type WigFields = {
   name: string;
-  imageUrl: string;
-  description: string | null;
+  description?: string | null;
   price: number | null;
-}) {
+};
+
+// An emptied description is stored as null so the field can be cleared.
+function toWigData(data: WigFields) {
+  return {
+    name: data.name.trim(),
+    description: data.description || null,
+    price: data.price,
+  };
+}
+
+export async function createWig(data: WigFields & { imageUrl: string }) {
   return prisma.wig.create({
+    data: { ...toWigData(data), imageUrl: data.imageUrl },
+  });
+}
+
+export async function updateWig(
+  wigId: string,
+  data: WigFields & { imageUrl?: string },
+) {
+  return prisma.wig.update({
+    where: { id: wigId },
     data: {
-      name: data.name.trim(),
-      imageUrl: data.imageUrl,
-      description: data.description,
-      price: data.price,
+      ...toWigData(data),
+      ...(data.imageUrl && { imageUrl: data.imageUrl }),
     },
   });
 }
