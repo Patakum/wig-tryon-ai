@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = parseImageFormFile(formData);
-    const { name, description, price } = parseWigFormData(formData);
+    const { name, description, price, color, length, material } = parseWigFormData(formData);
 
     const imageUrl = await uploadWigReferenceImage(file);
 
@@ -21,6 +21,9 @@ export async function POST(req: NextRequest) {
       imageUrl,
       description: description ?? null,
       price,
+      color: color ?? null,
+      length: length ?? null,
+      material: material ?? null,
     });
 
     revalidatePath('/catalog');

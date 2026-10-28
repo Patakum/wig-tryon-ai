@@ -3,5 +3,9 @@
   "builder.autoDetectDevServer": true,
   "builder.launchType": "editor",
   "builder.serverUrl": "",
-  "builder.command": ""
+  "builder.command": "",
+  "chat.tools.terminal.autoApprove": {
+    "mkdir": true,
+    "pnpm": true
+  }
 }

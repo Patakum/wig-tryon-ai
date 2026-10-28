@@ -1,14 +1,6 @@
 import { Facebook, Twitter, Globe } from 'lucide-react';
 import { Divider } from '@/src/components/ui/divider';
-
-const CONTACT_INFO = {
-  address: 'הרצל 123, רחובות, ישראל',
-  phone: `+${process.env.WHATSAPP_PHONE}` || '+',
-  phoneDisplay: process.env.WHATSAPP_PHONE
-    ? `WhatsApp: ${process.env.WHATSAPP_PHONE}`
-    : 'Phone: +',
-  email: 'support@company.com',
-};
+import { prisma } from '@/src/lib/prisma';
 
 const SOCIAL_LINKS = [
   { icon: Facebook, label: 'Facebook', url: '#' },
@@ -16,30 +8,59 @@ const SOCIAL_LINKS = [
   { icon: Globe, label: 'Website', url: '#' },
 ];
 
-function ContactSection() {
+async function ContactSection() {
+  const businessInfo = await prisma.businessInfo.findFirst();
+
+  if (!businessInfo) {
+    return (
+      <address className="not-italic text-sm flex flex-col gap-2">
+        <h3 className="mb-2 text-sm font-bold text-stone-900">צור קשר</h3>
+        <p className="text-xs text-stone-600">Contact information not yet configured</p>
+      </address>
+    );
+  }
+
+  const whatsappPhone = businessInfo.whatsappNumber?.replace(/[^0-9+]/g, '') || '';
+
   return (
     <address className="not-italic text-sm flex flex-col gap-2">
       <h3 className="mb-2 text-sm font-bold text-stone-900">צור קשר</h3>
-      <a
-        href={`https://maps.google.com/?q=${encodeURIComponent(CONTACT_INFO.address)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
-      >
-        כתובת שלנו - {CONTACT_INFO.address}
-      </a>
-      <a
-        href={`tel:${CONTACT_INFO.phone}`}
-        className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
-      >
-        {CONTACT_INFO.phoneDisplay}
-      </a>
-      <a
-        href={`mailto:${CONTACT_INFO.email}`}
-        className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
-      >
-        {CONTACT_INFO.email}
-      </a>
+      {businessInfo.address && (
+        <a
+          href={`https://maps.google.com/?q=${encodeURIComponent(businessInfo.address)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
+        >
+          כתובת שלנו - {businessInfo.address}
+        </a>
+      )}
+      {businessInfo.whatsappNumber && (
+        <a
+          href={`https://wa.me/${whatsappPhone}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
+        >
+          WhatsApp: {businessInfo.whatsappNumber}
+        </a>
+      )}
+      {businessInfo.phone && (
+        <a
+          href={`tel:${businessInfo.phone}`}
+          className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
+        >
+          {businessInfo.phone}
+        </a>
+      )}
+      {businessInfo.email && (
+        <a
+          href={`mailto:${businessInfo.email}`}
+          className="block text-xs text-stone-600 hover:text-stone-900 transition-colors"
+        >
+          {businessInfo.email}
+        </a>
+      )}
     </address>
   );
 }
@@ -73,7 +94,7 @@ export default function Footer() {
       <ContactSection />
       <SocialSection />
       <Divider />
-      <p className="text-xs text-stone-600 text-end">© 2017 RACHELI</p>
+      <p className="text-xs text-stone-600 text-end">© {new Date().getFullYear()} Wig Try-On</p>
     </footer>
   );
 }
