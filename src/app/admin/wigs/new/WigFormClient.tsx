@@ -81,6 +81,39 @@ export function WigFormClient() {
       </div>
 
       <div className="space-y-1">
+        <label htmlFor="color" className="text-sm font-medium">
+          Color
+        </label>
+        <Input
+          id="color"
+          name="color"
+          placeholder="e.g., Black, Brown, Blonde (optional)"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="length" className="text-sm font-medium">
+          Length
+        </label>
+        <Input
+          id="length"
+          name="length"
+          placeholder="e.g., Short, Medium, Long (optional)"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="material" className="text-sm font-medium">
+          Material
+        </label>
+        <Input
+          id="material"
+          name="material"
+          placeholder="e.g., Human Hair, Synthetic (optional)"
+        />
+      </div>
+
+      <div className="space-y-1">
         <label htmlFor="price" className="text-sm font-medium">
           Price (optional)
         </label>
