@@ -91,7 +91,7 @@ export default async function WigDetailPage({
 }) {
   const { wigId } = await params;
   const wig = await getWig(wigId);
-console.log(wig)
+
   if (!wig) {
     notFound();
   }
