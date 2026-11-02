@@ -14,6 +14,9 @@ export async function createWig(data: {
   imageUrl: string;
   description: string | null;
   price: number | null;
+  color?: string | null;
+  length?: string | null;
+  material?: string | null;
 }) {
   return prisma.wig.create({
     data: {
@@ -21,6 +24,9 @@ export async function createWig(data: {
       imageUrl: data.imageUrl,
       description: data.description,
       price: data.price,
+      color: data.color || null,
+      length: data.length || null,
+      material: data.material || null,
     },
   });
 }
@@ -43,7 +49,16 @@ export async function getWigs() {
 export async function getWig(wigId: string) {
   return prisma.wig.findUnique({
     where: { id: wigId },
-    select: { id: true, name: true, imageUrl: true, price: true, description: true },
+    select: { 
+      id: true, 
+      name: true, 
+      imageUrl: true, 
+      price: true, 
+      description: true,
+      color: true,
+      length: true,
+      material: true,
+    },
   });
 }
 
