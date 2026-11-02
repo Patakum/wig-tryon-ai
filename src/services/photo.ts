@@ -86,7 +86,6 @@ export async function transferGuestOwnershipToUser(params: {
           },
           data: {
             userId: params.userId,
-            guestSessionId: null,
           },
         }),
 
@@ -96,8 +95,8 @@ export async function transferGuestOwnershipToUser(params: {
             guestSessionId: params.guestSessionId,
           },
           data: {
+            // guestSessionId stays so a second account cannot claim the same guest.
             userId: params.userId,
-            guestSessionId: null,
           },
         }),
       ]);
