@@ -63,6 +63,7 @@ model Wig {
   generations Generation[]
   favorites   Favorite[]
   photos      WigPhoto[]
+  images      WigImage[]
 }
 
 model WigPhoto {
