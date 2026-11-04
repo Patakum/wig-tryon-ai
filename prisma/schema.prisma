@@ -54,6 +54,10 @@ model Wig {
   description String?
   imageUrl    String
   price       Float?
+  color       String?
+  length      String?
+  material    String?
+  inStock     Boolean   @default(true)
   createdAt   DateTime  @default(now())
   archivedAt  DateTime?
 
@@ -72,15 +76,6 @@ model WigPhoto {
   wig Wig @relation(fields: [wigId], references: [id], onDelete: Cascade)
 
   @@index([wigId, position])
-  color       String?
-  length      String?
-  material    String?
-  inStock     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-
-  generations Generation[]
-  favorites   Favorite[]
-  images      WigImage[]
 }
 
 model Favorite {
@@ -96,18 +91,6 @@ model Favorite {
   @@index([userId, createdAt])
 }
 
-model WigImage {
-  id        String   @id @default(cuid())
-  wigId     String
-  imageUrl  String
-  angle     String?
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-
-  wig Wig @relation(fields: [wigId], references: [id], onDelete: Cascade)
-
-  @@index([wigId])
-}
 
 model BusinessInfo {
   id              String   @id @default(cuid())
