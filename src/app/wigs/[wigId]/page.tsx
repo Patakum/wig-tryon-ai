@@ -1,5 +1,8 @@
+import type { ComponentProps } from 'react';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { getOptionalUser } from '@/src/lib/api/auth';
+import { isFavorite } from '@/src/services/favorite';
 import { getWig } from '@/src/services/wig';
 import { getWigImages } from '@/src/services/wig-image';
 import WigDetailClient from './WigDetailClient';
@@ -7,10 +10,18 @@ import WigActionButtons from './WigActionButtons';
 import PageContainer from '@/src/components/PageContainer';
 import WigGallery from '@/src/components/WigGallery';
 
-function ProductImage({ src, alt }: { src: string; alt: string }) {
+function ProductImage({
+  src,
+  alt,
+  favorite,
+}: {
+  src: string;
+  alt: string;
+  favorite: ComponentProps<typeof WigDetailClient>;
+}) {
   return (
     <figure className="relative w-full bg-gray-50">
-      <WigDetailClient />
+      <WigDetailClient {...favorite} />
       <Image
         src={src}
         alt={alt}
@@ -86,25 +97,32 @@ function ProductInfo({
 
 export default async function WigDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ wigId: string }>;
+  searchParams: Promise<{ favorite?: string }>;
 }) {
-  const { wigId } = await params;
-  const wig = await getWig(wigId);
+  const [{ wigId }, { favorite }] = await Promise.all([params, searchParams]);
+  const [wig, user] = await Promise.all([getWig(wigId), getOptionalUser()]);
 
   if (!wig) {
     notFound();
   }
 
-  const images = await getWigImages(wigId);
+  const initialFavorited = user ? await isFavorite(user.id, wig.id) : false;
 
   return (
     <PageContainer className="p-4">
-      {images.length > 0 ? (
-        <WigGallery images={images} />
-      ) : (
-        <ProductImage src={wig.imageUrl} alt={wig.name} />
-      )}
+      <ProductImage
+        src={wig.imageUrl}
+        alt={wig.name}
+        favorite={{
+          wigId: wig.id,
+          initialFavorited,
+          isSignedIn: user !== null,
+          autoFavorite: favorite === '1',
+        }}
+      />
       <ProductInfo
         name={wig.name}
         description={wig.description}

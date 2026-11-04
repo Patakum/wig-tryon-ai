@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Heart, Search, ShoppingBag } from 'lucide-react';
 import AuthButton from '@/src/components/AuthButton';
 import IconButton from '@/src/components/IconButton';
@@ -14,9 +15,13 @@ export default function MainNav() {
           </IconButton>
         </li>
         <li>
-          <IconButton label="Favorites">
+          <Link
+            href="/favorites"
+            aria-label="Favorites"
+            className="text-gray-800 hover:scale-110 transition-transform inline-block"
+          >
             <Heart size={ICON_SIZE} />
-          </IconButton>
+          </Link>
         </li>
         <li>
           <AuthButton />
