@@ -50,6 +50,7 @@ export async function createWig(data: {
       color: data.color || null,
       length: data.length || null,
       material: data.material || null,
+      photos: { create: { imageUrl: data.imageUrl, position: 0 } },
     },
   });
 }

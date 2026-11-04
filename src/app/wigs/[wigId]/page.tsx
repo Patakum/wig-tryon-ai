@@ -3,12 +3,10 @@ import { notFound } from 'next/navigation';
 import { getOptionalUser } from '@/src/lib/api/auth';
 import { isFavorite } from '@/src/services/favorite';
 import { getWig } from '@/src/services/wig';
-import { getWigImages } from '@/src/services/wig-image';
 import WigDetailClient from './WigDetailClient';
 import WigActionButtons from './WigActionButtons';
 import WigGallery from './WigGallery';
 import PageContainer from '@/src/components/PageContainer';
-import WigGallery from '@/src/components/WigGallery';
 
 function ProductImage({
   photos,
