@@ -32,11 +32,7 @@ export const historyQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
 });
 
-export const wigUpdateSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(120),
-  description: z.string().trim().max(2000).nullable(),
-  price: z.number().positive('Price must be positive').nullable(),
-});
+export { wigUpdateSchema } from '@/src/lib/wig-schema';
 
 export const movePhotoSchema = z.object({
   direction: z.enum(['up', 'down']),

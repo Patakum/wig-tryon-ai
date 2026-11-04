@@ -3,9 +3,22 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/src/components/ui/dialog';
 import { Input } from '@/src/components/ui/input';
+import { wigUpdateSchema, type WigUpdateInput } from '@/src/lib/wig-schema';
 
 type Props = {
   wig: {
@@ -18,67 +31,55 @@ type Props = {
   maxPhotos: number;
 };
 
-async function readError(res: Response): Promise<string> {
-  try {
-    const body = await res.json();
-    return body?.error?.message ?? 'Request failed';
-  } catch {
-    return 'Request failed';
+function errorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    return err.response?.data?.error?.message ?? 'Request failed';
   }
+
+  return 'Request failed';
 }
 
 export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
   const router = useRouter();
-  const [name, setName] = useState(wig.name);
-  const [description, setDescription] = useState(wig.description ?? '');
-  const [price, setPrice] = useState(wig.price?.toString() ?? '');
   const [busy, setBusy] = useState(false);
+  const [photoToRemove, setPhotoToRemove] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
     null,
   );
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<WigUpdateInput>({
+    resolver: zodResolver(wigUpdateSchema),
+    defaultValues: {
+      name: wig.name,
+      description: wig.description,
+      price: wig.price,
+    },
+  });
+
   const basePath = `/api/admin/wigs/${encodeURIComponent(wig.id)}`;
 
-  async function run(action: () => Promise<Response>, successText: string) {
+  async function run(action: () => Promise<unknown>, successText: string) {
     setBusy(true);
     setMessage(null);
 
     try {
-      const res = await action();
-
-      if (!res.ok) {
-        setMessage({ ok: false, text: await readError(res) });
-        return;
-      }
-
+      await action();
       setMessage({ ok: true, text: successText });
       router.refresh();
-    } catch {
-      setMessage({ ok: false, text: 'Network error. Try again.' });
+    } catch (err) {
+      setMessage({ ok: false, text: errorMessage(err) });
     } finally {
       setBusy(false);
     }
   }
 
-  function saveDetails(e: React.FormEvent) {
-    e.preventDefault();
-
-    const parsedPrice = price.trim() === '' ? null : Number(price);
-
-    void run(
-      () =>
-        fetch(basePath, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            description: description.trim() === '' ? null : description,
-            price: parsedPrice,
-          }),
-        }),
-      'Details saved.',
-    );
-  }
+  const saveDetails = handleSubmit((values) =>
+    run(() => axios.patch(basePath, values), 'Details saved.'),
+  );
 
   function addPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -89,32 +90,27 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
     const formData = new FormData();
     formData.append('file', file);
 
-    void run(
-      () => fetch(`${basePath}/photos`, { method: 'POST', body: formData }),
-      'Photo added.',
-    );
+    void run(() => axios.post(`${basePath}/photos`, formData), 'Photo added.');
   }
 
   function movePhoto(photoId: string, direction: 'up' | 'down') {
     void run(
       () =>
-        fetch(`${basePath}/photos/${encodeURIComponent(photoId)}/move`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ direction }),
+        axios.post(`${basePath}/photos/${encodeURIComponent(photoId)}/move`, {
+          direction,
         }),
       'Order updated.',
     );
   }
 
-  function removePhoto(photoId: string) {
-    if (!window.confirm('Remove this photo?')) return;
+  function removePhoto() {
+    const photoId = photoToRemove;
+    setPhotoToRemove(null);
+
+    if (!photoId) return;
 
     void run(
-      () =>
-        fetch(`${basePath}/photos/${encodeURIComponent(photoId)}`, {
-          method: 'DELETE',
-        }),
+      () => axios.delete(`${basePath}/photos/${encodeURIComponent(photoId)}`),
       'Photo removed.',
     );
   }
@@ -126,12 +122,12 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
           <label htmlFor="name" className="text-sm font-medium">
             Name *
           </label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+          <Input id="name" {...register('name')} />
+          {errors.name && (
+            <p role="alert" className="text-sm text-red-600">
+              {errors.name.message}
+            </p>
+          )}
         </div>
         <div className="space-y-1">
           <label htmlFor="description" className="text-sm font-medium">
@@ -139,9 +135,15 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
           </label>
           <Input
             id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            {...register('description', {
+              setValueAs: (v: string) => (v.trim() === '' ? null : v),
+            })}
           />
+          {errors.description && (
+            <p role="alert" className="text-sm text-red-600">
+              {errors.description.message}
+            </p>
+          )}
         </div>
         <div className="space-y-1">
           <label htmlFor="price" className="text-sm font-medium">
@@ -152,9 +154,15 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
             type="number"
             step="0.01"
             min="0"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            {...register('price', {
+              setValueAs: (v: string) => (v === '' ? null : Number(v)),
+            })}
           />
+          {errors.price && (
+            <p role="alert" className="text-sm text-red-600">
+              {errors.price.message}
+            </p>
+          )}
         </div>
         <Button type="submit" disabled={busy}>
           Save details
@@ -209,7 +217,7 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
                 size="icon"
                 aria-label="Remove photo"
                 disabled={busy || photos.length <= 1}
-                onClick={() => removePhoto(photo.id)}
+                onClick={() => setPhotoToRemove(photo.id)}
               >
                 <Trash2 size={16} />
               </Button>
@@ -241,6 +249,26 @@ export default function WigEditClient({ wig, photos, maxPhotos }: Props) {
           {message.text}
         </p>
       )}
+
+      <Dialog
+        open={photoToRemove !== null}
+        onOpenChange={(open) => !open && setPhotoToRemove(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove this photo?</DialogTitle>
+            <DialogDescription>
+              The photo is deleted from the wig and from storage.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={removePhoto}>Remove</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
