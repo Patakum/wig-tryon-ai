@@ -1,36 +1,26 @@
 import type { ComponentProps } from 'react';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getOptionalUser } from '@/src/lib/api/auth';
 import { isFavorite } from '@/src/services/favorite';
 import { getWig } from '@/src/services/wig';
-import { getWigImages } from '@/src/services/wig-image';
 import WigDetailClient from './WigDetailClient';
 import WigActionButtons from './WigActionButtons';
+import WigGallery from './WigGallery';
 import PageContainer from '@/src/components/PageContainer';
-import WigGallery from '@/src/components/WigGallery';
 
 function ProductImage({
-  src,
+  photos,
   alt,
   favorite,
 }: {
-  src: string;
+  photos: ComponentProps<typeof WigGallery>['photos'];
   alt: string;
   favorite: ComponentProps<typeof WigDetailClient>;
 }) {
   return (
     <figure className="relative w-full bg-gray-50">
       <WigDetailClient {...favorite} />
-      <Image
-        src={src}
-        alt={alt}
-        width={400}
-        height={500}
-        className="w-full h-auto object-cover rounded-xl"
-        priority
-        unoptimized
-      />
+      <WigGallery photos={photos} alt={alt} />
     </figure>
   );
 }
@@ -114,7 +104,7 @@ export default async function WigDetailPage({
   return (
     <PageContainer className="p-4">
       <ProductImage
-        src={wig.imageUrl}
+        photos={wig.photos}
         alt={wig.name}
         favorite={{
           wigId: wig.id,

@@ -9,6 +9,7 @@ import { getPhotoForViewer } from '@/src/services/photo';
 import { segmentHair } from '@/src/lib/replicate';
 import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
 import { requireOwner } from '@/src/services/ownership';
+import { PENDING_TIMEOUT_MS } from '@/src/services/generation-limits';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
 type GenerationCreationAccess = {
@@ -19,7 +20,6 @@ type GenerationCreationAccess = {
 
 type GenerationDb = Pick<PrismaClient, 'generation'>;
 
-const PENDING_TIMEOUT_MS = 10 * 60 * 1000;
 const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAILY_LIMIT = 3;
 
@@ -50,7 +50,7 @@ export async function getGenerationForViewer(
     where: { id: generationId },
   });
 
-  if (!generation) {
+  if (!generation || generation.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
@@ -72,22 +72,31 @@ export async function createFeedbackForGeneration(params: {
 
   const generation = await prisma.generation.findUnique({
     where: { id: params.generationId },
-    select: { userId: true, guestSessionId: true },
+    select: { userId: true, guestSessionId: true, deletedAt: true },
   });
 
-  if (!generation) {
+  if (!generation || generation.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
   requireOwner(generation, params.viewer);
 
-  return prisma.feedback.create({
-    data: {
-      generationId: params.generationId,
-      userId,
-      message: params.message,
-    },
+  return prisma.feedback.upsert({
+    where: { generationId: params.generationId },
+    create: { generationId: params.generationId, userId, message: params.message },
+    update: { message: params.message },
   });
+}
+
+export async function getFeedbackMessage(
+  generationId: string,
+): Promise<string> {
+  const feedback = await prisma.feedback.findUnique({
+    where: { generationId },
+    select: { message: true },
+  });
+
+  return feedback?.message ?? '';
 }
 
 export async function createPendingGeneration(params: {

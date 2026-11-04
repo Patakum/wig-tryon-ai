@@ -62,7 +62,20 @@ model Wig {
 
   generations Generation[]
   favorites   Favorite[]
+  photos      WigPhoto[]
   images      WigImage[]
+}
+
+model WigPhoto {
+  id        String   @id @default(cuid())
+  wigId     String
+  imageUrl  String
+  position  Int
+  createdAt DateTime @default(now())
+
+  wig Wig @relation(fields: [wigId], references: [id], onDelete: Cascade)
+
+  @@index([wigId, position])
 }
 
 model Favorite {
@@ -108,6 +121,7 @@ model Photo {
   guestSessionId String?
   imageUrl       String
   createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
   user           User?         @relation(fields: [userId], references: [id])
   guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
 
@@ -117,30 +131,32 @@ model Photo {
 }
 
 model Generation {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String?
   guestSessionId String?
   photoId        String
   wigId          String
   resultImageUrl String?
   status         String
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
 
   user         User?         @relation(fields: [userId], references: [id])
   guestSession GuestSession? @relation(fields: [guestSessionId], references: [id])
   photo        Photo         @relation(fields: [photoId], references: [id])
   wig          Wig           @relation(fields: [wigId], references: [id])
-  feedbacks    Feedback[]
+  feedback     Feedback?
 
   @@index([guestSessionId])
 }
 
 model Feedback {
   id           String   @id @default(cuid())
-  generationId String
+  generationId String   @unique
   userId       String
   message      String
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   generation Generation @relation(fields: [generationId], references: [id])
   user       User       @relation(fields: [userId], references: [id])

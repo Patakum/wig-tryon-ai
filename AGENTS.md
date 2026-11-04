@@ -14,6 +14,7 @@
 - Import Prisma only from `src/lib/prisma.ts` (singleton — prevents connection pool exhaustion in dev).
 - Use `shadcn/ui` primitives (Button, Dialog, Card, Input) over custom UI.
 - Use `zod` for input validation at API route and Server Action boundaries.
+- Use existed libreries for your tasks instead of using js build api (axios, zod, radix-ui, RHF).
 
 ### API Routes
 - Return responses using the shared helpers: `ok()`, `normalizeErrorToResponse()` from `src/lib/api/http.ts` and `errors.ts`.

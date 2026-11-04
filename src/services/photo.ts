@@ -150,7 +150,7 @@ export async function getPhotoForViewer(
 ) {
   const photo = await prisma.photo.findUnique({ where: { id: photoId } });
 
-  if (!photo) {
+  if (!photo || photo.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Photo not found');
   }
 

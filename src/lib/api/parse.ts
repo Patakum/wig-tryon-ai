@@ -17,11 +17,25 @@ export const generateRequestSchema = z.object({
 
 export const feedbackSchema = z.object({
   generationId: z.string().min(1, 'generationId is required'),
-  message: z.string().trim().min(1, 'message is required'),
+  message: z
+    .string()
+    .trim()
+    .min(1, 'message is required')
+    .max(1000, 'message must be at most 1000 characters'),
 });
 
 export const favoriteSchema = z.object({
   wigId: z.string().min(1, 'wigId is required'),
+});
+
+export const historyQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+});
+
+export { wigUpdateSchema } from '@/src/lib/wig-schema';
+
+export const movePhotoSchema = z.object({
+  direction: z.enum(['up', 'down']),
 });
 
 export async function parseJsonBody<TSchema extends z.ZodTypeAny>(
