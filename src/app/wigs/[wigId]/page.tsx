@@ -3,10 +3,12 @@ import { notFound } from 'next/navigation';
 import { getOptionalUser } from '@/src/lib/api/auth';
 import { isFavorite } from '@/src/services/favorite';
 import { getWig } from '@/src/services/wig';
+import { getWigImages } from '@/src/services/wig-image';
 import WigDetailClient from './WigDetailClient';
 import WigActionButtons from './WigActionButtons';
 import WigGallery from './WigGallery';
 import PageContainer from '@/src/components/PageContainer';
+import WigGallery from '@/src/components/WigGallery';
 
 function ProductImage({
   photos,
@@ -29,13 +31,19 @@ function ProductInfo({
   name,
   description,
   wigPrice,
+  color,
+  length,
+  material,
 }: {
   name: string;
   description?: string | null;
   wigPrice?: number | string | null;
+  color?: string | null;
+  length?: string | null;
+  material?: string | null;
 }) {
   return (
-    <section className="px-2 pt-5 pb-4">
+    <section className="px-2 pt-5 pb-4 space-y-2">
       <h1 className="text-2xl font-semibold text-gray-900 mb-3">{name}</h1>
 
       <div className="flex items-center gap-2 mb-5">
@@ -47,15 +55,29 @@ function ProductInfo({
       </div>
 
       {description && (
-        <p className="text-gray-700 text-sm leading-relaxed mb-3">
+        <p className="text-gray-700 text-sm leading-relaxed">
           <span className="font-semibold">תיאור:</span> {description}
         </p>
       )}
 
-      <p className="text-gray-700 text-sm leading-relaxed">
-        <span className="font-semibold">אורך:</span> כ-40–45 ס&quot;מ (נופל מעל
-        החזה ומתחת לכתפיים).
-      </p>
+      {color && (
+        <p className="text-gray-700 text-sm leading-relaxed">
+          <span className="font-semibold">צבע:</span> {color}
+        </p>
+      )}
+
+      {length && (
+        <p className="text-gray-700 text-sm leading-relaxed">
+          <span className="font-semibold">אורך:</span> {length}
+        </p>
+      )}
+
+      {material && (
+        <p className="text-gray-700 text-sm leading-relaxed">
+          <span className="font-semibold">חומר:</span> {material}
+        </p>
+      )}
+
       {wigPrice && (
         <p className="text-gray-700 text-sm leading-relaxed">
           <span className="font-semibold">מחיר:</span> ₪{wigPrice}
@@ -97,6 +119,9 @@ export default async function WigDetailPage({
         name={wig.name}
         description={wig.description}
         wigPrice={wig.price}
+        color={wig.color}
+        length={wig.length}
+        material={wig.material}
       />
       <div className="h-36"></div>
     
