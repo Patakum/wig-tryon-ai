@@ -50,7 +50,7 @@ export async function getGenerationForViewer(
     where: { id: generationId },
   });
 
-  if (!generation) {
+  if (!generation || generation.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
@@ -72,10 +72,10 @@ export async function createFeedbackForGeneration(params: {
 
   const generation = await prisma.generation.findUnique({
     where: { id: params.generationId },
-    select: { userId: true, guestSessionId: true },
+    select: { userId: true, guestSessionId: true, deletedAt: true },
   });
 
-  if (!generation) {
+  if (!generation || generation.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 

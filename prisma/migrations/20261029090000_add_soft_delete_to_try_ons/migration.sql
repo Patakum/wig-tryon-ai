@@ -1,0 +1,3 @@
+ALTER TABLE "Photo" ADD COLUMN "deletedAt" TIMESTAMP(3);
+
+ALTER TABLE "Generation" ADD COLUMN "deletedAt" TIMESTAMP(3);

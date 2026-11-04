@@ -7,6 +7,7 @@ import Feedback from '@/src/components/Feedback';
 import { getOptionalViewer } from '@/src/lib/api/auth';
 import { ApiRouteError } from '@/src/lib/api/errors';
 import { getHistoryDetail } from '@/src/services/history';
+import DeleteTryOnButton from './DeleteTryOnButton';
 
 const dateFormat = new Intl.DateTimeFormat('he-IL', {
   dateStyle: 'long',
@@ -84,6 +85,8 @@ export default async function TryOnDetailPage({
           <Feedback id={detail.id} />
         )}
       </section>
+    
+      <DeleteTryOnButton id={detail.id} />
     </PageContainer>
   );
 }
