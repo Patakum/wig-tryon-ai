@@ -1,17 +1,28 @@
 'use client';
 
 import axios from 'axios';
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  createInitialFeedbackState,
   feedbackReducer,
-  initialFeedbackState,
 } from '@/src/components/Feedback.reducer';
 import { Button } from './ui/button';
 
-export default function Feedback({ id }: { id: string }) {
+export default function Feedback({
+  id,
+  initialMessage = '',
+}: {
+  id: string;
+  initialMessage?: string;
+}) {
   const router = useRouter();
-  const [state, dispatch] = useReducer(feedbackReducer, initialFeedbackState);
+  const [state, dispatch] = useReducer(
+    feedbackReducer,
+    initialMessage,
+    createInitialFeedbackState,
+  );
+  const [hasSaved, setHasSaved] = useState(initialMessage !== '');
   const draftKey = `wig-feedback-draft:${id}`;
 
   useEffect(() => {
@@ -34,6 +45,7 @@ export default function Feedback({ id }: { id: string }) {
       });
 
       dispatch({ type: 'SEND_SUCCESS' });
+      setHasSaved(true);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         try {
@@ -61,13 +73,16 @@ export default function Feedback({ id }: { id: string }) {
 
   return (
     <div className="mt-6">
-      <h2 className="text-lg mb-2">השאר משוב</h2>
+      <h2 className="text-lg mb-2">
+        {hasSaved ? 'המשוב שלך' : 'השאר משוב'}
+      </h2>
 
       <textarea
         value={state.message}
         onChange={(e) =>
           dispatch({ type: 'SET_MESSAGE', payload: e.target.value })
         }
+        maxLength={1000}
         className="w-full border rounded p-2"
         placeholder="כתוב את חוות דעתך..."
       />
@@ -78,10 +93,10 @@ export default function Feedback({ id }: { id: string }) {
         variant="default"
         className="mt-2 bg-secondary-foreground"
       >
-        {state.sending ? 'שולח...' : 'שלח משוב'}
+        {state.sending ? 'שולח...' : hasSaved ? 'עדכון משוב' : 'שלח משוב'}
       </Button>
 
-      {state.success && <p className="text-green-600 mt-2">המשוב נשלח!</p>}
+      {state.success && <p className="text-green-600 mt-2">המשוב נשמר!</p>}
       {state.error ? <p className="text-red-600 mt-2">{state.error}</p> : null}
     </div>
   );

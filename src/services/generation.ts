@@ -81,13 +81,22 @@ export async function createFeedbackForGeneration(params: {
 
   requireOwner(generation, params.viewer);
 
-  return prisma.feedback.create({
-    data: {
-      generationId: params.generationId,
-      userId,
-      message: params.message,
-    },
+  return prisma.feedback.upsert({
+    where: { generationId: params.generationId },
+    create: { generationId: params.generationId, userId, message: params.message },
+    update: { message: params.message },
   });
+}
+
+export async function getFeedbackMessage(
+  generationId: string,
+): Promise<string> {
+  const feedback = await prisma.feedback.findUnique({
+    where: { generationId },
+    select: { message: true },
+  });
+
+  return feedback?.message ?? '';
 }
 
 export async function createPendingGeneration(params: {

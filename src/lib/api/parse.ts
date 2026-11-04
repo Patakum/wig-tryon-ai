@@ -17,7 +17,11 @@ export const generateRequestSchema = z.object({
 
 export const feedbackSchema = z.object({
   generationId: z.string().min(1, 'generationId is required'),
-  message: z.string().trim().min(1, 'message is required'),
+  message: z
+    .string()
+    .trim()
+    .min(1, 'message is required')
+    .max(1000, 'message must be at most 1000 characters'),
 });
 
 export const favoriteSchema = z.object({

@@ -11,6 +11,7 @@ type ResultPageClientProps = {
   photoImageUrl: string;
   resultImageUrl: string;
   whatsappPhone?: string;
+  initialFeedback?: string;
 };
 
 export default function ResultPageClient({
@@ -20,6 +21,7 @@ export default function ResultPageClient({
   photoImageUrl,
   resultImageUrl,
   whatsappPhone,
+  initialFeedback = '',
 }: ResultPageClientProps) {
   const whatsappLink = whatsappPhone
     ? createWhatsAppLink({
@@ -60,7 +62,7 @@ export default function ResultPageClient({
         </p>
       )}
 
-      <Feedback id={generationId} />
+      <Feedback id={generationId} initialMessage={initialFeedback} />
 
       <p className="mt-4 text-xs bg-amber-200 p-2 rounded">
         *התוצאות הן להמחשה בלבד ותלויות באיכות התמונה שהועלתה ובבחירת הפאה.
