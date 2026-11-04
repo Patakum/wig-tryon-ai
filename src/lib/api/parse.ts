@@ -32,6 +32,12 @@ export const historyQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
 });
 
+export { wigUpdateSchema } from '@/src/lib/wig-schema';
+
+export const movePhotoSchema = z.object({
+  direction: z.enum(['up', 'down']),
+});
+
 export async function parseJsonBody<TSchema extends z.ZodTypeAny>(
   req: Request,
   schema: TSchema,
