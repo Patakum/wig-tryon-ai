@@ -36,9 +36,13 @@ export default function MainNav() {
           <AuthButton />
         </li>
         <li>
-          <IconButton label="Search">
+          <Link
+            href="/catalog#search"
+            aria-label="Search"
+            className="text-gray-800 hover:scale-110 transition-transform inline-block"
+          >
             <Search size={ICON_SIZE} />
-          </IconButton>
+          </Link>
         </li>
       </ul>
     </nav>
