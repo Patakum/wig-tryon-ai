@@ -71,7 +71,7 @@ describe('favorites', () => {
     await expect(getFavoriteWigs('user-a')).resolves.toEqual([wig]);
     expect(mocks.prisma.favorite.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'user-a' },
+        where: { userId: 'user-a', wig: { archivedAt: null } },
         orderBy: { createdAt: 'desc' },
       }),
     );
