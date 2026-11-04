@@ -4,6 +4,7 @@ import PageHeader from '@/src/components/PageHeader';
 import { getWig, getLatestWigs } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
 import {
+  getFeedbackMessage,
   getGenerationForViewer,
 } from '@/src/services/generation';
 import { ApiRouteError } from '@/src/lib/api/errors';
@@ -87,6 +88,9 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
   }
 
   const whatsappPhone = process.env.WHATSAPP_PHONE;
+  const feedbackMessage = viewer.userId
+    ? await getFeedbackMessage(generation.id)
+    : '';
 
   return (
     <PageContainer className="p-4">
@@ -98,6 +102,7 @@ export default async function ResultPage({ searchParams }: ResultPageProps) {
         photoImageUrl={`/api/photos/${encodeURIComponent(photo.id)}/image`}
         resultImageUrl={`/api/generations/${encodeURIComponent(generation.id)}/image`}
         whatsappPhone={whatsappPhone}
+        initialFeedback={feedbackMessage}
       />
     </PageContainer>
   );

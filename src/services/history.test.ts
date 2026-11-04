@@ -8,13 +8,13 @@ vi.mock('@/src/lib/prisma', () => ({ prisma: mocks.prisma }));
 
 import { getHistoryDetail, getHistoryForUser } from '@/src/services/history';
 
-function row(id: string, status = 'completed', feedbacks = 0) {
+function row(id: string, status = 'completed', hasFeedback = false) {
   return {
     id,
     status,
     createdAt: new Date('2026-10-01T00:00:00Z'),
     wig: { name: `wig-${id}` },
-    _count: { feedbacks },
+    feedback: hasFeedback ? { id: `f-${id}` } : null,
   };
 }
 
@@ -52,8 +52,8 @@ describe('history', () => {
 
   it('has no cursor on the last page and maps feedback state', async () => {
     mocks.prisma.generation.findMany.mockResolvedValue([
-      row('g2', 'completed', 1),
-      row('g1', 'pending', 0),
+      row('g2', 'completed', true),
+      row('g1', 'pending', false),
     ]);
 
     const page = await getHistoryForUser('user-a', { limit: 5 });
