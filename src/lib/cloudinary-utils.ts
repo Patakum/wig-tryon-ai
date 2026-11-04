@@ -30,6 +30,10 @@ export function getSignedPrivateUrl(publicId: string): string {
     sign_url: true,
     secure: true,
     resource_type: 'image',
+    // The SDK reads its own package.json for the analytics token, which fails
+    // once Next bundles it ("Must supply sdk_semver"). This URL is fetched
+    // server-side only, so the token is not needed.
+    urlAnalytics: false,
   });
 }
 

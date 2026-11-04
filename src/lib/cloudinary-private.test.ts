@@ -23,6 +23,9 @@ describe('private image delivery', () => {
     expect(url.pathname).toMatch(
       /^\/demo\/image\/authenticated\/s--[\w-]{8}--\/(v\d+\/)?wig-ai\/abc/,
     );
+    // The analytics token needs the SDK's package.json, which is unavailable
+    // once Next bundles the SDK.
+    expect(url.searchParams.has('_a')).toBe(false);
   });
 
   it('fetches private images with the signed URL, not the stored link', async () => {
