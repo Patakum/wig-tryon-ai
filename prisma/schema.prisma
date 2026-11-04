@@ -62,6 +62,7 @@ model Wig {
 
   generations Generation[]
   favorites   Favorite[]
+  images      WigImage[]
 }
 
 model Favorite {
@@ -75,7 +76,6 @@ model Favorite {
 
   @@unique([userId, wigId])
   @@index([userId, createdAt])
-  images      WigImage[]
 }
 
 model WigImage {
