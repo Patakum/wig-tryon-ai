@@ -2,7 +2,10 @@ import OpenAI, { toFile } from 'openai';
 import type { PrismaClient } from '@prisma/client';
 import sharp from 'sharp';
 import { prisma } from '@/src/lib/prisma';
-import { uploadGeneration } from '@/src/lib/cloudinary-utils';
+import {
+  fetchStoredImageBuffer,
+  uploadGeneration,
+} from '@/src/lib/cloudinary-utils';
 import { throwApiError } from '@/src/lib/api/errors';
 import { getWigOrThrow } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
@@ -267,40 +270,44 @@ export async function runGeneration(generationId: string): Promise<void> {
   }
 
   try {
-    // Run hair segmentation in parallel with image fetching AND pre-build the
-    // geometric mask — all three are independent and can run concurrently.
-    // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is set.
-    const segmentationPromise = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL
-      ? segmentHair(photo.imageUrl).catch((err: unknown) => {
-          console.warn(
-            '[generation] Hair segmentation failed — falling back to geometric mask:',
-            err,
-          );
-          return null;
-        })
-      : Promise.resolve(null);
+    // The selfie is a private asset, so it is fetched with a server-signed
+    // URL and never handed to a third party by link.
+    const [selfieBuffer, wigResponse, geometricMaskBuffer] = await Promise.all([
+      fetchStoredImageBuffer({
+        imageUrl: photo.imageUrl,
+        publicId: photo.imagePublicId,
+      }),
+      fetch(wig.imageUrl),
+      buildGeometricHairMask(1024, 1024),
+    ]);
 
-    const [selfieResponse, wigResponse, maskUrl, geometricMaskBuffer] =
-      await Promise.all([
-        fetch(photo.imageUrl),
-        fetch(wig.imageUrl),
-        segmentationPromise,
-        buildGeometricHairMask(1024, 1024),
-      ]);
-
-    if (!selfieResponse.ok || !wigResponse.ok) {
+    if (!wigResponse.ok) {
       throw new Error('Failed to fetch images for generation.');
     }
 
-    const [selfieBuffer, wigBuffer] = await Promise.all([
-      selfieResponse.arrayBuffer(),
-      wigResponse.arrayBuffer(),
-    ]);
+    const wigBuffer = await wigResponse.arrayBuffer();
+
+    // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is
+    // set. The image is sent as bytes (data URI), not as a link.
+    let maskUrl: string | null = null;
+    if (process.env.REPLICATE_HAIR_SEGMENTATION_MODEL) {
+      try {
+        const { format } = await sharp(selfieBuffer).metadata();
+        maskUrl = await segmentHair(
+          `data:image/${format ?? 'jpeg'};base64,${selfieBuffer.toString('base64')}`,
+        );
+      } catch (err: unknown) {
+        console.warn(
+          '[generation] Hair segmentation failed — falling back to geometric mask:',
+          err,
+        );
+      }
+    }
 
     // Normalize selfie to 1024×1024 in parallel with fetching an AI mask (if any).
     // OpenAI requires mask and image to be the exact same dimensions.
     const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
-      sharp(Buffer.from(selfieBuffer))
+      sharp(selfieBuffer)
         .resize(1024, 1024, {
           fit: 'contain',
           position: 'centre',
@@ -343,7 +350,8 @@ Blend seamlessly. Photorealistic result.`;
       throw new Error('OpenAI returned no image data.');
     }
 
-    const { secureUrl: resultUrl } = await uploadGeneration(
+    const { secureUrl: resultUrl, publicId: resultPublicId } =
+      await uploadGeneration(
       `data:image/jpeg;base64,${base64}`,
     );
 
@@ -351,6 +359,7 @@ Blend seamlessly. Photorealistic result.`;
       where: { id: generationId },
       data: {
         resultImageUrl: resultUrl,
+        resultPublicId,
         status: 'completed',
       },
     });

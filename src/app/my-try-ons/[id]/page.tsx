@@ -7,6 +7,7 @@ import Feedback from '@/src/components/Feedback';
 import { getOptionalViewer } from '@/src/lib/api/auth';
 import { ApiRouteError } from '@/src/lib/api/errors';
 import { getHistoryDetail } from '@/src/services/history';
+import AdminVisibilityToggles from './AdminVisibilityToggles';
 import DeleteTryOnButton from './DeleteTryOnButton';
 
 const dateFormat = new Intl.DateTimeFormat('he-IL', {
@@ -79,6 +80,14 @@ export default async function TryOnDetailPage({
         />
       </section>
     
+      <AdminVisibilityToggles
+        id={detail.id}
+        initial={{
+          adminCanSeeSelfie: detail.adminCanSeeSelfie,
+          adminCanSeeResult: detail.adminCanSeeResult,
+        }}
+      />
+
       <DeleteTryOnButton id={detail.id} />
     </PageContainer>
   );
