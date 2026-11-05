@@ -91,6 +91,51 @@ export async function createFeedbackForGeneration(params: {
   });
 }
 
+export type GenerationFailureReason = 'quota' | 'timeout' | 'error';
+
+// Provider credits running out needs the admin's attention, so it gets its
+// own reason; the match mirrors the billing check in the API error handler.
+export function classifyGenerationFailure(err: unknown): GenerationFailureReason {
+  const code = (err as { code?: unknown } | null)?.code;
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+
+  if (
+    code === 'insufficient_quota' ||
+    message.includes('insufficient_quota') ||
+    message.includes('billing')
+  ) {
+    return 'quota';
+  }
+
+  return 'error';
+}
+
+// Status for the polling client. A job stuck past the timeout is closed here
+// too, so the customer is told promptly instead of waiting indefinitely.
+export async function getGenerationStatus(
+  generationId: string,
+  viewer: ViewerIdentity,
+) {
+  const generation = await getGenerationForViewer(generationId, viewer);
+
+  if (
+    generation.status === 'pending' &&
+    generation.createdAt.getTime() < Date.now() - PENDING_TIMEOUT_MS
+  ) {
+    await prisma.generation.updateMany({
+      where: { id: generationId, status: 'pending' },
+      data: { status: 'failed', failureReason: 'timeout' },
+    });
+
+    return { status: 'failed', failureReason: 'timeout' };
+  }
+
+  return {
+    status: generation.status,
+    failureReason: generation.failureReason ?? null,
+  };
+}
+
 export async function getFeedbackMessage(
   generationId: string,
 ): Promise<string> {
@@ -179,7 +224,7 @@ export async function getGenerationCreationAccess(
       status: 'pending',
       createdAt: { lt: new Date(Date.now() - PENDING_TIMEOUT_MS) },
     },
-    data: { status: 'failed' },
+    data: { status: 'failed', failureReason: 'timeout' },
   });
 
   if (viewer.userId) {
@@ -264,7 +309,7 @@ export async function runGeneration(generationId: string): Promise<void> {
   if (!photo || !wig) {
     await prisma.generation.update({
       where: { id: generationId },
-      data: { status: 'failed' },
+      data: { status: 'failed', failureReason: 'error' },
     });
     throw new Error('Photo or wig not found for generation');
   }
@@ -360,13 +405,14 @@ Blend seamlessly. Photorealistic result.`;
       data: {
         resultImageUrl: resultUrl,
         resultPublicId,
+        failureReason: null,
         status: 'completed',
       },
     });
   } catch (err) {
     await prisma.generation.update({
       where: { id: generationId },
-      data: { status: 'failed' },
+      data: { status: 'failed', failureReason: classifyGenerationFailure(err) },
     });
     throw err;
   }
