@@ -42,8 +42,8 @@ export default function ResultPageClient({
           afterUrl={resultImageUrl}
         />
         <div className="flex justify-between mt-1 text-xs text-muted-foreground px-1">
-          <span>לפני</span>
           <span>אחרי</span>
+          <span>לפני</span>
         </div>
       </div>
 

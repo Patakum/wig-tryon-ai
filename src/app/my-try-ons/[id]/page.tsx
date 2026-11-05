@@ -2,11 +2,10 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import PageContainer from '@/src/components/PageContainer';
 import PageHeader from '@/src/components/PageHeader';
-import CompareSlider from '@/src/components/ui/CompareSlider';
-import Feedback from '@/src/components/Feedback';
 import { getOptionalViewer } from '@/src/lib/api/auth';
 import { ApiRouteError } from '@/src/lib/api/errors';
 import { getHistoryDetail } from '@/src/services/history';
+import ResultPageClient from '@/src/app/result/ResultPageClient';
 import AdminVisibilityToggles from './AdminVisibilityToggles';
 import DeleteTryOnButton from './DeleteTryOnButton';
 
@@ -51,35 +50,25 @@ export default async function TryOnDetailPage({
         {dateFormat.format(detail.createdAt)}
       </p>
 
-      <div className="mt-4">
-        <CompareSlider
-          beforeUrl={`/api/photos/${encodeURIComponent(detail.photoId)}/image`}
-          afterUrl={`/api/generations/${encodeURIComponent(detail.id)}/image`}
-        />
-        <div className="flex justify-between mt-1 text-xs text-muted-foreground px-1">
-          <span>לפני</span>
-          <span>אחרי</span>
-        </div>
-      </div>
+      <ResultPageClient
+        generationId={detail.id}
+        wigName={detail.wig.name}
+        wigImageUrl={detail.wig.imageUrl}
+        photoImageUrl={`/api/photos/${encodeURIComponent(detail.photoId)}/image`}
+        resultImageUrl={`/api/generations/${encodeURIComponent(detail.id)}/image`}
+        whatsappPhone={process.env.WHATSAPP_PHONE}
+        initialFeedback={detail.feedback?.message ?? ''}
+      />
 
       <section className="mt-4">
-        <h2 className="text-sm font-semibold">הפאה שנבחרה</h2>
         <Link href={`/wigs/${detail.wig.id}`} className="underline text-sm">
-          {detail.wig.name}
+          לעמוד הפאה
         </Link>
         {detail.wig.price != null && (
           <p className="text-sm text-muted-foreground">₪{detail.wig.price}</p>
         )}
       </section>
 
-      <section className="mt-4">
-        <h2 className="text-sm font-semibold">המשוב שלי</h2>
-        <Feedback
-          id={detail.id}
-          initialMessage={detail.feedback?.message ?? ''}
-        />
-      </section>
-    
       <AdminVisibilityToggles
         id={detail.id}
         initial={{
