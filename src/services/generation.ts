@@ -9,6 +9,7 @@ import {
 import { throwApiError } from '@/src/lib/api/errors';
 import { getWigOrThrow } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
+import { isFakeProviders } from '@/src/lib/fake-providers';
 import { segmentHair } from '@/src/lib/replicate';
 import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
 import { requireOwner } from '@/src/services/ownership';
@@ -290,7 +291,64 @@ export async function getGenerationCreationAccess(
   };
 }
 
+// Stand-in for the OpenAI pipeline in the end-to-end suite (see
+// fake-providers.ts). Wig names starting with [fail] or [quota] simulate a
+// provider failure or exhausted credits.
+async function runFakeGeneration(generationId: string): Promise<void> {
+  const generation = await prisma.generation.findUnique({
+    where: { id: generationId },
+    select: { wig: { select: { name: true } } },
+  });
+
+  try {
+    const delay = Number(process.env.E2E_FAKE_GENERATION_DELAY_MS ?? 1500);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    const wigName = generation?.wig.name ?? '';
+    if (wigName.startsWith('[quota]')) {
+      throw new Error('429 insufficient_quota');
+    }
+    if (wigName.startsWith('[fail]')) {
+      throw new Error('fake provider failure');
+    }
+
+    const jpeg = await sharp({
+      create: {
+        width: 1024,
+        height: 1024,
+        channels: 3,
+        background: { r: 180, g: 120, b: 90 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+    const { secureUrl, publicId } = await uploadGeneration(
+      `data:image/jpeg;base64,${jpeg.toString('base64')}`,
+    );
+
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: {
+        resultImageUrl: secureUrl,
+        resultPublicId: publicId,
+        failureReason: null,
+        status: 'completed',
+      },
+    });
+  } catch (err) {
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: { status: 'failed', failureReason: classifyGenerationFailure(err) },
+    });
+    throw err;
+  }
+}
+
 export async function runGeneration(generationId: string): Promise<void> {
+  if (isFakeProviders()) {
+    return runFakeGeneration(generationId);
+  }
+
   const openai = getOpenAiClient();
 
   const generation = await prisma.generation.findUnique({
