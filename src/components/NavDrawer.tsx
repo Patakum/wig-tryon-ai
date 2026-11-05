@@ -62,7 +62,7 @@ export default function NavDrawer({ className }: { className?: string }) {
             className,
           )}
         >
-          <Menu size={22} aria-hidden="true" />
+          <Menu size={22} aria-hidden="true" color='white'/>
         </button>
       </DialogTrigger>
 

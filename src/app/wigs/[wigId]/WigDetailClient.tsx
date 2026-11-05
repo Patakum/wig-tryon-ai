@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import Logo from '@/src/components/Logo';
+import { HeartIcon } from '@/src/components/HeartIcon';
 
 type Props = {
   wigId: string;
@@ -90,19 +91,7 @@ export default function WigDetailClient({
             aria-label={isFavorited ? 'הסירי מהמועדפים' : 'הוסיפי למועדפים'}
             aria-pressed={isFavorited}
           >
-            <svg
-              width="22"
-              height="22"
-              fill={isFavorited ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-              className={isFavorited ? 'text-red-600' : 'text-gray-900'}
-              aria-hidden="true"
-            >
-              <path d="M12 21s-6.2-5.2-8.5-8C1.1 10.1 1 7.6 3.1 5.5 5.2 3.4 8.1 3.4 10.2 5.5L12 7.3l1.8-1.8c2.1-2.1 5-2.1 7.1 0 2.1 2.1 2 4.6-.4 7.5C18.2 15.8 12 21 12 21z" />
-            </svg>
+            <HeartIcon filled={isFavorited} />
           </button>
         ) : (
           <span className="size-10" aria-hidden="true" />
@@ -115,7 +104,7 @@ export default function WigDetailClient({
             className={CHIP}
             aria-label="חזרה"
           >
-            <ChevronRight size={24} aria-hidden="true" />
+            <ChevronLeft size={24} aria-hidden="true" />
           </button>
         </div>
       </div>

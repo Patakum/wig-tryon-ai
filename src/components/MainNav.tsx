@@ -21,24 +21,24 @@ export default function MainNav({ variant = 'compact' }: MainNavProps) {
         </li>
         <li>
           <Link href="/catalog#search" aria-label="חיפוש" className={LINK_CLASS}>
-            <Search size={ICON_SIZE} aria-hidden="true" />
+            <Search size={ICON_SIZE} aria-hidden="true" color='white'/>
           </Link>
         </li>
         {variant === 'full' && (
           <>
             <li>
               <Link href="/favorites" aria-label="המועדפים שלי" className={LINK_CLASS}>
-                <Heart size={ICON_SIZE} aria-hidden="true" />
+                <Heart size={ICON_SIZE} aria-hidden="true" color='white'/>
               </Link>
             </li>
             <li>
               <Link href="/my-try-ons" aria-label="הניסיונות שלי" className={LINK_CLASS}>
-                <History size={ICON_SIZE} aria-hidden="true" />
+                <History size={ICON_SIZE} aria-hidden="true" color='white'/>
               </Link>
             </li>
             <li>
               <Link href="/cart" aria-label="עגלה" className={LINK_CLASS}>
-                <ShoppingBag size={ICON_SIZE} aria-hidden="true" />
+                <ShoppingBag size={ICON_SIZE} aria-hidden="true" color='white'/>
               </Link>
             </li>
           </>
