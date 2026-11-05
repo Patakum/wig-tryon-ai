@@ -3,23 +3,13 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+
 import { authClient } from '@/src/lib/auth-client';
 import { cn } from '@/src/lib/utils';
+import { Input } from './ui/input';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from './ui/field';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
 
 export function LoginForm({
   className,
@@ -78,9 +68,7 @@ export function LoginForm({
       }
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : 'לא הצלחת להתחבר עם Google.',
+        error instanceof Error ? error.message : 'לא הצלחת להתחבר עם Google.',
       );
     }
   }
@@ -112,10 +100,7 @@ export function LoginForm({
               <Field>
                 <div className="w-full flex justify-between items-center">
                   <FieldLabel htmlFor="password"> סיסמה </FieldLabel>
-                  <a
-                    href="#"
-                    className="text-gray-500 hover:underline"
-                  >
+                  <a href="#" className="text-gray-500 hover:underline">
                     שחכת את הסיסמה?
                   </a>
                 </div>
@@ -131,7 +116,9 @@ export function LoginForm({
                   />
                   <button
                     type="button"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={
+                      showPassword ? 'Hide password' : 'Show password'
+                    }
                     onClick={() => setShowPassword((current) => !current)}
                     className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
                   >
