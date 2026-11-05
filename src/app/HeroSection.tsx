@@ -21,7 +21,7 @@ export default function HeroSection() {
         priority
       />
 
-      <div className="absolute top-4 left-2 z-10">
+      <div className="absolute top-4 left-2 z-10 [&_img]:size-[88px] sm:[&_img]:size-[140px]">
         <Logo size={140} />
       </div>
 
@@ -37,7 +37,7 @@ export default function HeroSection() {
       />
 
       <div className="absolute top-[14%] right-4 z-10 text-center">
-        <h1 className="text-3xl md:text-5xl font-bold tracking-wider text-white drop-shadow-md">
+        <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-wider text-white drop-shadow-md">
           TRY WIGS
           <br />
           IN REAL TIME
