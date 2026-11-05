@@ -1,4 +1,4 @@
-import { SignupForm } from '@/components/signup-form';
+import { SignupForm } from '@/src/components/auth/signup-form';
 import { getSafeRedirect } from '@/src/lib/auth-redirect';
 
 type SignupPageProps = {
