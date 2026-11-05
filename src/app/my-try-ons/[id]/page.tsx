@@ -62,7 +62,7 @@ export default async function TryOnDetailPage({
 
       <section className="mt-4">
         <Link href={`/wigs/${detail.wig.id}`} className="underline text-sm">
-          לעמוד הפאה
+          {detail.wig.name}
         </Link>
         {detail.wig.price != null && (
           <p className="text-sm text-muted-foreground">₪{detail.wig.price}</p>
