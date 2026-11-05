@@ -4,6 +4,7 @@ import Footer from '@/src/components/Footer';
 import PageContainer from '@/src/components/PageContainer';
 import { getOptionalUser } from '@/src/lib/api/auth';
 import { getHistoryForUser } from '@/src/services/history';
+import DeleteAllTryOnsButton from './DeleteAllTryOnsButton';
 import HistoryList from './HistoryList';
 
 export default async function MyTryOnsPage() {
@@ -21,6 +22,7 @@ export default async function MyTryOnsPage() {
       <div className="p-3">
         <h2 className="mb-3 text-lg">הניסיונות שלי</h2>
         <HistoryList initialPage={firstPage} />
+        {firstPage.items.length > 0 && <DeleteAllTryOnsButton />}
       </div>
       <Footer />
     </PageContainer>
