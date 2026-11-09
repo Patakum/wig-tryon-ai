@@ -8,6 +8,7 @@ export const uploadBase64Schema = z.object({
     .refine((value) => value.startsWith('data:image'), {
       message: 'Invalid file: must be a data:image string',
     }),
+  consent: z.literal(true, { error: 'Privacy policy consent is required' }),
 });
 
 export const generateRequestSchema = z.object({
@@ -17,7 +18,41 @@ export const generateRequestSchema = z.object({
 
 export const feedbackSchema = z.object({
   generationId: z.string().min(1, 'generationId is required'),
-  message: z.string().trim().min(1, 'message is required'),
+  message: z
+    .string()
+    .trim()
+    .min(1, 'message is required')
+    .max(1000, 'message must be at most 1000 characters'),
+});
+
+export const favoriteSchema = z.object({
+  wigId: z.string().min(1, 'wigId is required'),
+});
+
+export const historyQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+});
+
+export { wigUpdateSchema } from '@/src/lib/wig-schema';
+
+export const archiveWigSchema = z.object({
+  archived: z.boolean(),
+});
+
+export const adminVisibilitySchema = z
+  .object({
+    adminCanSeeSelfie: z.boolean().optional(),
+    adminCanSeeResult: z.boolean().optional(),
+  })
+  .refine(
+    (value) =>
+      value.adminCanSeeSelfie !== undefined ||
+      value.adminCanSeeResult !== undefined,
+    { message: 'Provide at least one setting' },
+  );
+
+export const movePhotoSchema = z.object({
+  direction: z.enum(['up', 'down']),
 });
 
 export async function parseJsonBody<TSchema extends z.ZodTypeAny>(
@@ -82,6 +117,17 @@ export function parseWigFormData(formData: FormData): WigFormData {
     throwApiError(400, 'BAD_REQUEST', result.error.issues[0].message);
   }
   return result.data;
+}
+
+// Photos are only processed after the customer ticked the privacy consent box.
+export function requireUploadConsent(formData: FormData): void {
+  if (formData.get('consent') !== 'true') {
+    throwApiError(
+      400,
+      'CONSENT_REQUIRED',
+      'Privacy policy consent is required to upload a photo',
+    );
+  }
 }
 
 export function parseImageFormFile(formData: FormData): File {

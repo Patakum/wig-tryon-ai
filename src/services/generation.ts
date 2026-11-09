@@ -2,13 +2,18 @@ import OpenAI, { toFile } from 'openai';
 import type { PrismaClient } from '@prisma/client';
 import sharp from 'sharp';
 import { prisma } from '@/src/lib/prisma';
-import { uploadGeneration } from '@/src/lib/cloudinary-utils';
+import {
+  fetchStoredImageBuffer,
+  uploadGeneration,
+} from '@/src/lib/cloudinary-utils';
 import { throwApiError } from '@/src/lib/api/errors';
 import { getWigOrThrow } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
+import { isFakeProviders } from '@/src/lib/fake-providers';
 import { segmentHair } from '@/src/lib/replicate';
 import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
 import { requireOwner } from '@/src/services/ownership';
+import { PENDING_TIMEOUT_MS } from '@/src/services/generation-limits';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
 type GenerationCreationAccess = {
@@ -19,7 +24,6 @@ type GenerationCreationAccess = {
 
 type GenerationDb = Pick<PrismaClient, 'generation'>;
 
-const PENDING_TIMEOUT_MS = 10 * 60 * 1000;
 const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAILY_LIMIT = 3;
 
@@ -50,7 +54,7 @@ export async function getGenerationForViewer(
     where: { id: generationId },
   });
 
-  if (!generation) {
+  if (!generation || generation.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
@@ -72,22 +76,76 @@ export async function createFeedbackForGeneration(params: {
 
   const generation = await prisma.generation.findUnique({
     where: { id: params.generationId },
-    select: { userId: true, guestSessionId: true },
+    select: { userId: true, guestSessionId: true, deletedAt: true },
   });
 
-  if (!generation) {
+  if (!generation || generation.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Generation not found');
   }
 
   requireOwner(generation, params.viewer);
 
-  return prisma.feedback.create({
-    data: {
-      generationId: params.generationId,
-      userId,
-      message: params.message,
-    },
+  return prisma.feedback.upsert({
+    where: { generationId: params.generationId },
+    create: { generationId: params.generationId, userId, message: params.message },
+    update: { message: params.message },
   });
+}
+
+export type GenerationFailureReason = 'quota' | 'timeout' | 'error';
+
+// Provider credits running out needs the admin's attention, so it gets its
+// own reason; the match mirrors the billing check in the API error handler.
+export function classifyGenerationFailure(err: unknown): GenerationFailureReason {
+  const code = (err as { code?: unknown } | null)?.code;
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+
+  if (
+    code === 'insufficient_quota' ||
+    message.includes('insufficient_quota') ||
+    message.includes('billing')
+  ) {
+    return 'quota';
+  }
+
+  return 'error';
+}
+
+// Status for the polling client. A job stuck past the timeout is closed here
+// too, so the customer is told promptly instead of waiting indefinitely.
+export async function getGenerationStatus(
+  generationId: string,
+  viewer: ViewerIdentity,
+) {
+  const generation = await getGenerationForViewer(generationId, viewer);
+
+  if (
+    generation.status === 'pending' &&
+    generation.createdAt.getTime() < Date.now() - PENDING_TIMEOUT_MS
+  ) {
+    await prisma.generation.updateMany({
+      where: { id: generationId, status: 'pending' },
+      data: { status: 'failed', failureReason: 'timeout' },
+    });
+
+    return { status: 'failed', failureReason: 'timeout' };
+  }
+
+  return {
+    status: generation.status,
+    failureReason: generation.failureReason ?? null,
+  };
+}
+
+export async function getFeedbackMessage(
+  generationId: string,
+): Promise<string> {
+  const feedback = await prisma.feedback.findUnique({
+    where: { generationId },
+    select: { message: true },
+  });
+
+  return feedback?.message ?? '';
 }
 
 export async function createPendingGeneration(params: {
@@ -167,7 +225,7 @@ export async function getGenerationCreationAccess(
       status: 'pending',
       createdAt: { lt: new Date(Date.now() - PENDING_TIMEOUT_MS) },
     },
-    data: { status: 'failed' },
+    data: { status: 'failed', failureReason: 'timeout' },
   });
 
   if (viewer.userId) {
@@ -233,7 +291,64 @@ export async function getGenerationCreationAccess(
   };
 }
 
+// Stand-in for the OpenAI pipeline in the end-to-end suite (see
+// fake-providers.ts). Wig names starting with [fail] or [quota] simulate a
+// provider failure or exhausted credits.
+async function runFakeGeneration(generationId: string): Promise<void> {
+  const generation = await prisma.generation.findUnique({
+    where: { id: generationId },
+    select: { wig: { select: { name: true } } },
+  });
+
+  try {
+    const delay = Number(process.env.E2E_FAKE_GENERATION_DELAY_MS ?? 1500);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    const wigName = generation?.wig.name ?? '';
+    if (wigName.startsWith('[quota]')) {
+      throw new Error('429 insufficient_quota');
+    }
+    if (wigName.startsWith('[fail]')) {
+      throw new Error('fake provider failure');
+    }
+
+    const jpeg = await sharp({
+      create: {
+        width: 1024,
+        height: 1024,
+        channels: 3,
+        background: { r: 180, g: 120, b: 90 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+    const { secureUrl, publicId } = await uploadGeneration(
+      `data:image/jpeg;base64,${jpeg.toString('base64')}`,
+    );
+
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: {
+        resultImageUrl: secureUrl,
+        resultPublicId: publicId,
+        failureReason: null,
+        status: 'completed',
+      },
+    });
+  } catch (err) {
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: { status: 'failed', failureReason: classifyGenerationFailure(err) },
+    });
+    throw err;
+  }
+}
+
 export async function runGeneration(generationId: string): Promise<void> {
+  if (isFakeProviders()) {
+    return runFakeGeneration(generationId);
+  }
+
   const openai = getOpenAiClient();
 
   const generation = await prisma.generation.findUnique({
@@ -252,46 +367,50 @@ export async function runGeneration(generationId: string): Promise<void> {
   if (!photo || !wig) {
     await prisma.generation.update({
       where: { id: generationId },
-      data: { status: 'failed' },
+      data: { status: 'failed', failureReason: 'error' },
     });
     throw new Error('Photo or wig not found for generation');
   }
 
   try {
-    // Run hair segmentation in parallel with image fetching AND pre-build the
-    // geometric mask — all three are independent and can run concurrently.
-    // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is set.
-    const segmentationPromise = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL
-      ? segmentHair(photo.imageUrl).catch((err: unknown) => {
-          console.warn(
-            '[generation] Hair segmentation failed — falling back to geometric mask:',
-            err,
-          );
-          return null;
-        })
-      : Promise.resolve(null);
+    // The selfie is a private asset, so it is fetched with a server-signed
+    // URL and never handed to a third party by link.
+    const [selfieBuffer, wigResponse, geometricMaskBuffer] = await Promise.all([
+      fetchStoredImageBuffer({
+        imageUrl: photo.imageUrl,
+        publicId: photo.imagePublicId,
+      }),
+      fetch(wig.imageUrl),
+      buildGeometricHairMask(1024, 1024),
+    ]);
 
-    const [selfieResponse, wigResponse, maskUrl, geometricMaskBuffer] =
-      await Promise.all([
-        fetch(photo.imageUrl),
-        fetch(wig.imageUrl),
-        segmentationPromise,
-        buildGeometricHairMask(1024, 1024),
-      ]);
-
-    if (!selfieResponse.ok || !wigResponse.ok) {
+    if (!wigResponse.ok) {
       throw new Error('Failed to fetch images for generation.');
     }
 
-    const [selfieBuffer, wigBuffer] = await Promise.all([
-      selfieResponse.arrayBuffer(),
-      wigResponse.arrayBuffer(),
-    ]);
+    const wigBuffer = await wigResponse.arrayBuffer();
+
+    // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is
+    // set. The image is sent as bytes (data URI), not as a link.
+    let maskUrl: string | null = null;
+    if (process.env.REPLICATE_HAIR_SEGMENTATION_MODEL) {
+      try {
+        const { format } = await sharp(selfieBuffer).metadata();
+        maskUrl = await segmentHair(
+          `data:image/${format ?? 'jpeg'};base64,${selfieBuffer.toString('base64')}`,
+        );
+      } catch (err: unknown) {
+        console.warn(
+          '[generation] Hair segmentation failed — falling back to geometric mask:',
+          err,
+        );
+      }
+    }
 
     // Normalize selfie to 1024×1024 in parallel with fetching an AI mask (if any).
     // OpenAI requires mask and image to be the exact same dimensions.
     const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
-      sharp(Buffer.from(selfieBuffer))
+      sharp(selfieBuffer)
         .resize(1024, 1024, {
           fit: 'contain',
           position: 'centre',
@@ -334,7 +453,8 @@ Blend seamlessly. Photorealistic result.`;
       throw new Error('OpenAI returned no image data.');
     }
 
-    const { secureUrl: resultUrl } = await uploadGeneration(
+    const { secureUrl: resultUrl, publicId: resultPublicId } =
+      await uploadGeneration(
       `data:image/jpeg;base64,${base64}`,
     );
 
@@ -342,13 +462,15 @@ Blend seamlessly. Photorealistic result.`;
       where: { id: generationId },
       data: {
         resultImageUrl: resultUrl,
+        resultPublicId,
+        failureReason: null,
         status: 'completed',
       },
     });
   } catch (err) {
     await prisma.generation.update({
       where: { id: generationId },
-      data: { status: 'failed' },
+      data: { status: 'failed', failureReason: classifyGenerationFailure(err) },
     });
     throw err;
   }

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { ChevronLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/src/components/ui/button';
 import PageContainer from '@/src/components/PageContainer';
@@ -22,7 +22,7 @@ export default async function InstructionsPage({
 
   const wig = await prisma.wig.findUnique({ where: { id: wigId } });
 
-  if (!wig) {
+  if (!wig || wig.archivedAt) {
     redirect('/catalog');
   }
 
@@ -32,7 +32,7 @@ export default async function InstructionsPage({
         {/* Header */}
         <div className="mb-6">
           <Link href={`/wigs/${wigId}`}>
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronRight className="w-6 h-6" />
           </Link>
         </div>
 
