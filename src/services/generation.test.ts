@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
       updateMany: vi.fn(),
       count: vi.fn(),
     },
-    feedback: { create: vi.fn() },
+    feedback: { upsert: vi.fn(), findUnique: vi.fn() },
     $transaction: vi.fn(),
     $executeRaw: vi.fn(),
   },
@@ -38,7 +38,10 @@ import {
   createFeedbackForGeneration,
   getGenerationCreationAccess,
   createPendingGeneration,
+  classifyGenerationFailure,
+  getFeedbackMessage,
   getGenerationForViewer,
+  getGenerationStatus,
 } from '@/src/services/generation';
 import { getPhotoForViewer } from '@/src/services/photo';
 import type { ViewerIdentity } from '@/src/types/viewer';
@@ -209,7 +212,114 @@ describe('generation ownership and setup', () => {
       }),
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
 
-    expect(mocks.prisma.feedback.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.feedback.upsert).not.toHaveBeenCalled();
+  });
+
+  it('creates or updates the single feedback record for the owner', async () => {
+    mocks.prisma.generation.findUnique.mockResolvedValue({
+      userId: 'customer-a',
+      guestSessionId: null,
+      deletedAt: null,
+    });
+
+    await createFeedbackForGeneration({
+      generationId: 'generation-1',
+      viewer: { userId: 'customer-a', guestSessionId: null },
+      message: 'Updated',
+    });
+
+    expect(mocks.prisma.feedback.upsert).toHaveBeenCalledWith({
+      where: { generationId: 'generation-1' },
+      create: {
+        generationId: 'generation-1',
+        userId: 'customer-a',
+        message: 'Updated',
+      },
+      update: { message: 'Updated' },
+    });
+  });
+
+  it('requires sign-in and an undeleted generation for feedback', async () => {
+    await expect(
+      createFeedbackForGeneration({
+        generationId: 'generation-1',
+        viewer: { userId: null, guestSessionId: 'guest-a' },
+        message: 'Hi',
+      }),
+    ).rejects.toMatchObject({ status: 401 });
+
+    mocks.prisma.generation.findUnique.mockResolvedValue({
+      userId: 'customer-a',
+      guestSessionId: null,
+      deletedAt: new Date(),
+    });
+    await expect(
+      createFeedbackForGeneration({
+        generationId: 'generation-1',
+        viewer: { userId: 'customer-a', guestSessionId: null },
+        message: 'Hi',
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('classifies exhausted provider credits as quota and everything else as error', () => {
+    expect(classifyGenerationFailure(new Error('429 insufficient_quota: add credits'))).toBe('quota');
+    expect(classifyGenerationFailure(new Error('Billing hard limit has been reached'))).toBe('quota');
+    expect(classifyGenerationFailure({ code: 'insufficient_quota' })).toBe('quota');
+    expect(classifyGenerationFailure(new Error('socket hang up'))).toBe('error');
+    expect(classifyGenerationFailure('weird')).toBe('error');
+  });
+
+  it('reports the stored status and failure reason to the polling client', async () => {
+    mocks.prisma.generation.findUnique.mockResolvedValue({
+      ...generation,
+      status: 'failed',
+      failureReason: 'quota',
+      createdAt: new Date(),
+    });
+
+    await expect(
+      getGenerationStatus('generation-1', { userId: 'customer-a', guestSessionId: null }),
+    ).resolves.toEqual({ status: 'failed', failureReason: 'quota' });
+  });
+
+  it('closes a job stuck past the timeout as failed with a timeout reason', async () => {
+    mocks.prisma.generation.findUnique.mockResolvedValue({
+      ...generation,
+      status: 'pending',
+      failureReason: null,
+      createdAt: new Date(Date.now() - 7 * 60 * 1000),
+    });
+
+    await expect(
+      getGenerationStatus('generation-1', { userId: 'customer-a', guestSessionId: null }),
+    ).resolves.toEqual({ status: 'failed', failureReason: 'timeout' });
+    expect(mocks.prisma.generation.updateMany).toHaveBeenCalledWith({
+      where: { id: 'generation-1', status: 'pending' },
+      data: { status: 'failed', failureReason: 'timeout' },
+    });
+  });
+
+  it('leaves a recent pending job alone', async () => {
+    mocks.prisma.generation.findUnique.mockResolvedValue({
+      ...generation,
+      status: 'pending',
+      failureReason: null,
+      createdAt: new Date(Date.now() - 60 * 1000),
+    });
+
+    await expect(
+      getGenerationStatus('generation-1', { userId: 'customer-a', guestSessionId: null }),
+    ).resolves.toEqual({ status: 'pending', failureReason: null });
+    expect(mocks.prisma.generation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('returns the saved feedback message or an empty string', async () => {
+    mocks.prisma.feedback.findUnique.mockResolvedValueOnce({ message: 'Nice' });
+    mocks.prisma.feedback.findUnique.mockResolvedValueOnce(null);
+
+    await expect(getFeedbackMessage('generation-1')).resolves.toBe('Nice');
+    await expect(getFeedbackMessage('generation-1')).resolves.toBe('');
   });
 
   it('creates a pending generation for the photo owner without calling providers', async () => {
@@ -342,7 +452,7 @@ describe('generation ownership and setup', () => {
         status: 'pending',
         createdAt: { lt: expect.any(Date) },
       },
-      data: { status: 'failed' },
+      data: { status: 'failed', failureReason: 'timeout' },
     });
   });
 

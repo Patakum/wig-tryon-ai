@@ -1,25 +1,27 @@
-import Image from 'next/image';
+import type { ComponentProps } from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getOptionalUser } from '@/src/lib/api/auth';
+import { isFavorite } from '@/src/services/favorite';
 import { getWig } from '@/src/services/wig';
-import { getWigImages } from '@/src/services/wig-image';
 import WigDetailClient from './WigDetailClient';
 import WigActionButtons from './WigActionButtons';
+import WigGallery from './WigGallery';
 import PageContainer from '@/src/components/PageContainer';
-import WigGallery from '@/src/components/WigGallery';
 
-function ProductImage({ src, alt }: { src: string; alt: string }) {
+function ProductImage({
+  photos,
+  alt,
+  favorite,
+}: {
+  photos: ComponentProps<typeof WigGallery>['photos'];
+  alt: string;
+  favorite: ComponentProps<typeof WigDetailClient>;
+}) {
   return (
     <figure className="relative w-full bg-gray-50">
-      <WigDetailClient />
-      <Image
-        src={src}
-        alt={alt}
-        width={400}
-        height={500}
-        className="w-full h-auto object-cover rounded-xl"
-        priority
-        unoptimized
-      />
+      <WigDetailClient {...favorite} />
+      <WigGallery photos={photos} alt={alt} />
     </figure>
   );
 }
@@ -86,25 +88,33 @@ function ProductInfo({
 
 export default async function WigDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ wigId: string }>;
+  searchParams: Promise<{ favorite?: string }>;
 }) {
-  const { wigId } = await params;
-  const wig = await getWig(wigId);
+  const [{ wigId }, { favorite }] = await Promise.all([params, searchParams]);
+  const [wig, user] = await Promise.all([getWig(wigId), getOptionalUser()]);
 
   if (!wig) {
     notFound();
   }
 
-  const images = await getWigImages(wigId);
+  const initialFavorited = user ? await isFavorite(user.id, wig.id) : false;
 
   return (
     <PageContainer className="p-4">
-      {images.length > 0 ? (
-        <WigGallery images={images} />
-      ) : (
-        <ProductImage src={wig.imageUrl} alt={wig.name} />
-      )}
+      <ProductImage
+        photos={wig.photos}
+        alt={wig.name}
+        favorite={{
+          wigId: wig.id,
+          initialFavorited,
+          isSignedIn: user !== null,
+          autoFavorite: favorite === '1',
+          canFavorite: !wig.archivedAt,
+        }}
+      />
       <ProductInfo
         name={wig.name}
         description={wig.description}
@@ -114,8 +124,17 @@ export default async function WigDetailPage({
         material={wig.material}
       />
       <div className="h-36"></div>
-    
-      <WigActionButtons wigId={wig.id} />
+
+      {wig.archivedAt ? (
+        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white px-6 py-4 text-center">
+          <p className="mb-2 text-sm text-gray-700">הפאה הזו כבר לא זמינה.</p>
+          <Link href="/catalog" className="text-sm underline">
+            לקטלוג הפאות
+          </Link>
+        </div>
+      ) : (
+        <WigActionButtons wigId={wig.id} />
+      )}
     </PageContainer>
   );
 }

@@ -17,6 +17,8 @@ type BaseImageUploaderProps<TResult> = {
   uploadFailedMessage?: string;
   dropzoneClassName?: string;
   showDropzone?: boolean;
+  // Also accept HEIC/HEIF files (some browsers report no MIME type for them).
+  allowHeic?: boolean;
   validateFile?: ValidateFile;
   preprocessFile?: PreprocessFile;
   uploadRequest?: UploadRequest<TResult>;
@@ -28,6 +30,7 @@ export default function BaseImageUploader<TResult>({
   maxSizeMB = 10,
   dropzoneClassName = 'cursor-pointer h-full w-full bg-[#D9D9D9] text-center rounded-lg border-2 border-dashed border-muted flex flex-col items-center justify-center gap-2 p-4',
   showDropzone = true,
+  allowHeic = false,
   validateFile,
   preprocessFile,
   uploadRequest = async (file) => file as unknown as TResult,
@@ -49,7 +52,9 @@ export default function BaseImageUploader<TResult>({
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
+    const isHeic = allowHeic && /\.(heic|heif)$/i.test(file.name);
+
+    if (!file.type.startsWith('image/') && !isHeic) {
       setErrorMessage(
         'בבקשה העלה קובץ תמונה בלבד. Please upload an image file only.',
       );
@@ -97,7 +102,7 @@ export default function BaseImageUploader<TResult>({
     onDrop,
     multiple: false,
     accept: {
-      'image/*': [],
+      'image/*': allowHeic ? ['.heic', '.heif'] : [],
     },
     maxSize: maxBytes,
     disabled: isUploading,

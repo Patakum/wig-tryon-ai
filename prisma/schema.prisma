@@ -29,6 +29,7 @@ model User {
   photos           Photo[]
   generations      Generation[]
   feedbacks        Feedback[]
+  favorites        Favorite[]
   accounts         Account[]
   sessions         Session[]
   passkeys         Passkey[]
@@ -48,7 +49,7 @@ model GuestSession {
 }
 
 model Wig {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
   imageUrl    String
@@ -56,35 +57,49 @@ model Wig {
   color       String?
   length      String?
   material    String?
-  inStock     Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  inStock     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  archivedAt  DateTime?
 
   generations Generation[]
-  images      WigImage[]
+  favorites   Favorite[]
+  photos      WigPhoto[]
 }
 
-model WigImage {
+model WigPhoto {
   id        String   @id @default(cuid())
   wigId     String
   imageUrl  String
-  angle     String?
-  order     Int      @default(0)
+  position  Int
   createdAt DateTime @default(now())
 
   wig Wig @relation(fields: [wigId], references: [id], onDelete: Cascade)
 
-  @@index([wigId])
+  @@index([wigId, position])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  wigId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wig  Wig  @relation(fields: [wigId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wigId])
+  @@index([userId, createdAt])
 }
 
 model BusinessInfo {
-  id              String   @id @default(cuid())
-  whatsappNumber  String?
-  phone           String?
-  email           String?
-  address         String?
-  openingHours    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  whatsappNumber String?
+  phone          String?
+  email          String?
+  address        String?
+  openingHours   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Photo {
@@ -92,7 +107,10 @@ model Photo {
   userId         String?
   guestSessionId String?
   imageUrl       String
+  imagePublicId  String?
+  consentAt      DateTime?
   createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
   user           User?         @relation(fields: [userId], references: [id])
   guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
 
@@ -102,30 +120,36 @@ model Photo {
 }
 
 model Generation {
-  id             String   @id @default(cuid())
-  userId         String?
-  guestSessionId String?
-  photoId        String
-  wigId          String
-  resultImageUrl String?
-  status         String
-  createdAt      DateTime @default(now())
+  id                String    @id @default(cuid())
+  userId            String?
+  guestSessionId    String?
+  photoId           String
+  wigId             String
+  resultImageUrl    String?
+  resultPublicId    String?
+  failureReason     String?
+  adminCanSeeSelfie Boolean   @default(true)
+  adminCanSeeResult Boolean   @default(true)
+  status            String
+  createdAt         DateTime  @default(now())
+  deletedAt         DateTime?
 
   user         User?         @relation(fields: [userId], references: [id])
   guestSession GuestSession? @relation(fields: [guestSessionId], references: [id])
   photo        Photo         @relation(fields: [photoId], references: [id])
   wig          Wig           @relation(fields: [wigId], references: [id])
-  feedbacks    Feedback[]
+  feedback     Feedback?
 
   @@index([guestSessionId])
 }
 
 model Feedback {
   id           String   @id @default(cuid())
-  generationId String
+  generationId String   @unique
   userId       String
   message      String
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   generation Generation @relation(fields: [generationId], references: [id])
   user       User       @relation(fields: [userId], references: [id])

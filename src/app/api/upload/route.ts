@@ -5,6 +5,7 @@ import { ok } from '@/src/lib/api/http';
 import {
   parseImageFormFile,
   parseJsonBody,
+  requireUploadConsent,
   uploadBase64Schema,
 } from '@/src/lib/api/parse';
 import {
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
+      requireUploadConsent(formData);
       const file = parseImageFormFile(formData);
       const uploaded = await uploadPhotoFromFile(file, viewer);
       return ok(uploaded, 201);

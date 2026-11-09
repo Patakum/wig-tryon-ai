@@ -1,0 +1,83 @@
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import PageContainer from '@/src/components/PageContainer';
+import PageHeader from '@/src/components/PageHeader';
+import { getOptionalViewer } from '@/src/lib/api/auth';
+import { ApiRouteError } from '@/src/lib/api/errors';
+import { getHistoryDetail } from '@/src/services/history';
+import ResultPageClient from '@/src/app/result/ResultPageClient';
+import AdminVisibilityToggles from './AdminVisibilityToggles';
+import DeleteTryOnButton from './DeleteTryOnButton';
+
+const dateFormat = new Intl.DateTimeFormat('he-IL', {
+  dateStyle: 'long',
+  timeZone: 'UTC',
+});
+
+export default async function TryOnDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const viewer = await getOptionalViewer();
+
+  if (!viewer.userId) {
+    redirect(`/login?next=${encodeURIComponent(`/my-try-ons/${id}`)}`);
+  }
+
+  let detail;
+  try {
+    detail = await getHistoryDetail(id, viewer);
+  } catch (error) {
+    if (
+      error instanceof ApiRouteError &&
+      (error.status === 403 || error.status === 404)
+    ) {
+      notFound();
+    }
+    throw error;
+  }
+
+  if (detail.status !== 'completed' || !detail.resultImageUrl) {
+    redirect(`/result?id=${encodeURIComponent(detail.id)}`);
+  }
+
+  return (
+    <PageContainer className="p-4">
+      <PageHeader title="הניסיון שלי" backHref="/my-try-ons" />
+      <p className="mt-1 text-sm text-muted-foreground">
+        {dateFormat.format(detail.createdAt)}
+      </p>
+
+      <ResultPageClient
+        generationId={detail.id}
+        wigName={detail.wig.name}
+        wigImageUrl={detail.wig.imageUrl}
+        photoImageUrl={`/api/photos/${encodeURIComponent(detail.photoId)}/image`}
+        resultImageUrl={`/api/generations/${encodeURIComponent(detail.id)}/image`}
+        whatsappPhone={process.env.WHATSAPP_PHONE}
+        initialFeedback={detail.feedback?.message ?? ''}
+      />
+
+      <section className="mt-4">
+        <Link href={`/wigs/${detail.wig.id}`} className="underline text-sm">
+          {detail.wig.name}
+        </Link>
+        {detail.wig.price != null && (
+          <p className="text-sm text-muted-foreground">₪{detail.wig.price}</p>
+        )}
+      </section>
+
+      <AdminVisibilityToggles
+        id={detail.id}
+        initial={{
+          adminCanSeeSelfie: detail.adminCanSeeSelfie,
+          adminCanSeeResult: detail.adminCanSeeResult,
+        }}
+      />
+
+      <DeleteTryOnButton id={detail.id} />
+    </PageContainer>
+  );
+}

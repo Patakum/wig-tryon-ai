@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       message,
     });
 
-    return ok(feedback, 201);
+    return ok(feedback);
   } catch (error) {
     return normalizeErrorToResponse(error, 'Failed to save feedback');
   }
