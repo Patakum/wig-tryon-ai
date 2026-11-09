@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/src/components/ui/button';
 import PageContainer from '@/src/components/PageContainer';
@@ -32,7 +32,7 @@ export default async function InstructionsPage({
         {/* Header */}
         <div className="mb-6">
           <Link href={`/wigs/${wigId}`}>
-            <ChevronRight className="w-6 h-6" />
+            <ChevronLeft className="w-6 h-6" />
           </Link>
         </div>
 

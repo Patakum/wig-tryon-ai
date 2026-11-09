@@ -26,7 +26,7 @@ export default function HeroSection() {
       </div>
 
       <div className="absolute top-3 right-2 z-10">
-        <MainNav variant="full" />
+        <MainNav variant="full" tone="light" />
       </div>
 
       {/* Soft dark fade behind the headline only, so white text stays readable
