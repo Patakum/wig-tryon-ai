@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { getOptionalViewer } from '@/src/lib/api/auth';
 import { normalizeErrorToResponse } from '@/src/lib/api/errors';
 import { ok } from '@/src/lib/api/http';
@@ -7,6 +8,8 @@ import {
   getGenerationCreationAccess,
   runGeneration,
 } from '@/src/services/generation';
+
+export const maxDuration = 300;
 
 export async function GET() {
   try {
@@ -30,11 +33,15 @@ export async function POST(req: Request) {
       viewer,
     });
 
-    // Fire-and-forget: start AI work in the background without blocking the response.
-    // On Vercel, wrap with waitUntil() from @vercel/functions for serverless reliability.
-    runGeneration(generationId).catch((err: unknown) =>
-      console.error('[generate] runGeneration failed:', err),
-    );
+    // Run the AI work after the response is sent; after() keeps the
+    // serverless invocation alive until it finishes (bounded by maxDuration).
+    after(async () => {
+      try {
+        await runGeneration(generationId);
+      } catch (err: unknown) {
+        console.error('[generate] runGeneration failed:', err);
+      }
+    });
 
     return ok({ generationId }, 201);
   } catch (error: unknown) {
