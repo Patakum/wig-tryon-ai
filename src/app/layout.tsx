@@ -1,20 +1,60 @@
 import type { Metadata } from 'next';
-import { Roboto, Josefin_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { ReactNode } from 'react';
 import ConnectionBanner from '../components/ConnectionBanner';
 import Providers from '../components/Providers';
 
-const josefinSans = Josefin_Sans({
+const josefinSans = localFont({
   variable: '--font-josefin-sans',
-  subsets: ['latin'],
-  weight: ['300', '400', '600', '700'],
+  src: [
+    {
+      path: '../../node_modules/@fontsource/josefin-sans/files/josefin-sans-latin-300-normal.woff2',
+      weight: '300',
+      style: 'normal',
+    },
+    {
+      path: '../../node_modules/@fontsource/josefin-sans/files/josefin-sans-latin-400-normal.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../../node_modules/@fontsource/josefin-sans/files/josefin-sans-latin-600-normal.woff2',
+      weight: '600',
+      style: 'normal',
+    },
+    {
+      path: '../../node_modules/@fontsource/josefin-sans/files/josefin-sans-latin-700-normal.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
 });
 
-const roboto = Roboto({
+const roboto = localFont({
   variable: '--font-roboto',
-  subsets: ['latin', 'greek'],
-  weight: ['300', '400', '500', '700'],
+  src: [
+    {
+      path: '../../node_modules/@fontsource/roboto/files/roboto-latin-300-normal.woff2',
+      weight: '300',
+      style: 'normal',
+    },
+    {
+      path: '../../node_modules/@fontsource/roboto/files/roboto-latin-400-normal.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../../node_modules/@fontsource/roboto/files/roboto-latin-500-normal.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../../node_modules/@fontsource/roboto/files/roboto-latin-700-normal.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
 });
 
 export const metadata: Metadata = {
