@@ -99,7 +99,10 @@ export default function Footer() {
         <Link href="/privacy" className="underline hover:text-stone-900">
           מדיניות פרטיות
         </Link>
-        <p>© {new Date().getFullYear()} Wig Try-On</p>
+        <p>
+          © {new Date().getFullYear()} Wig Try-On · v
+          {process.env.NEXT_PUBLIC_APP_VERSION}
+        </p>
       </div>
     </footer>
   );
