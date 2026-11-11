@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from '@/src/components/ui/card';
 import Image from 'next/image';
+import BackButton from '@/src/components/BackButton';
 
 export default async function AdminFeedbacksPage() {
   const feedbacks = await prisma.feedback.findMany({
@@ -24,6 +25,9 @@ export default async function AdminFeedbacksPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
+      <div className="flex justify-end">
+        <BackButton href="/admin" />
+      </div>
       <h1 className="text-2xl font-semibold">All Feedbacks</h1>
 
       {feedbacks.length === 0 ? (

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BackButton from '@/src/components/BackButton';
 import {
   Card,
   CardContent,
@@ -9,6 +10,9 @@ import {
 export default function AdminPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="flex justify-end">
+        <BackButton href="/catalog" />
+      </div>
       <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
 
       <div className="grid gap-4 md:grid-cols-2">

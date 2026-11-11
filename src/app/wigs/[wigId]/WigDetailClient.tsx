@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import BackButton from '@/src/components/BackButton';
 import Logo from '@/src/components/Logo';
 
 export default function WigDetailClient() {
-  const router = useRouter();
   const [isFavorited, setIsFavorited] = useState(false);
 
   return (
@@ -32,13 +30,7 @@ export default function WigDetailClient() {
         </button>
         <div className="flex items-center justify-center gap-1">
           <Logo />
-          <button
-            type="button"
-            onClick={() => router.push('/catalog')}
-            aria-label="חזרה"
-          >
-            <ChevronLeft size={26} className="text-gray-800 font-bold"  />
-          </button>
+          <BackButton href="/catalog" size={26} className="inline-flex" />
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
-import { ChevronLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
+import BackButton from '@/src/components/BackButton';
 import { Button } from '@/src/components/ui/button';
 import PageContainer from '@/src/components/PageContainer';
 import { prisma } from '@/src/lib/prisma';
@@ -30,10 +31,8 @@ export default async function InstructionsPage({
     <PageContainer className="p-4">
       <div className="max-w-md mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <Link href={`/wigs/${wigId}`}>
-            <ChevronLeft className="w-6 h-6" />
-          </Link>
+        <div className="mb-6 flex justify-end">
+          <BackButton href={`/wigs/${wigId}`} />
         </div>
 
         <h1 className="text-2xl font-bold mb-8 text-center">תנסי בעצמך</h1>
