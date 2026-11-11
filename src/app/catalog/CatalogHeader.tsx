@@ -10,7 +10,7 @@ export default function CatalogHeader() {
         <div className="flex items-center justify-center gap-4">
           <h1 className="text-center flex-1 text-gray-800">WIGS</h1>
           <Logo />
-          <BackButton href="/" />
+          <BackButton />
         </div>
       </div>
     </header>

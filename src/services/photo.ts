@@ -1,40 +1,21 @@
-import cloudinary from '@/src/lib/cloudinary';
+import { uploadPrivateSelfie } from '@/src/lib/cloudinary-utils';
 import { prisma } from '@/src/lib/prisma';
 import { throwApiError } from '@/src/lib/api/errors';
 import { requireOwner } from '@/src/services/ownership';
+import { normalizeSelfie } from '@/src/services/selfie-image';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
-async function uploadBufferToCloudinary(buffer: Buffer) {
-  return new Promise<{ secure_url: string }>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'wig-ai',
-        resource_type: 'image',
-        transformation: [
-          { width: 1600, height: 1600, crop: 'limit' },
-          { fetch_format: 'auto' },
-          { quality: 'auto:good' },
-        ],
-      },
-      (error, result) => {
-        if (error || !result) {
-          reject(error ?? new Error('Cloudinary upload failed'));
-          return;
-        }
-        resolve({ secure_url: result.secure_url });
-      },
-    );
-
-    stream.end(buffer);
-  });
-}
-
-async function createPhoto(viewer: ViewerIdentity, imageUrl: string) {
+async function createPhoto(
+  viewer: ViewerIdentity,
+  image: { secureUrl: string; publicId: string },
+) {
   return prisma.photo.create({
     data: {
       userId: viewer.userId,
       guestSessionId: viewer.userId ? null : viewer.guestSessionId,
-      imageUrl,
+      imageUrl: image.secureUrl,
+      imagePublicId: image.publicId,
+      consentAt: new Date(),
     },
   });
 }
@@ -116,8 +97,8 @@ export async function uploadPhotoFromFile(
   viewer: ViewerIdentity,
 ) {
   const buffer = Buffer.from(await file.arrayBuffer());
-  const uploaded = await uploadBufferToCloudinary(buffer);
-  const photo = await createPhoto(viewer, uploaded.secure_url);
+  const uploaded = await uploadPrivateSelfie(await normalizeSelfie(buffer));
+  const photo = await createPhoto(viewer, uploaded);
 
   return {
     photoId: photo.id,
@@ -128,16 +109,17 @@ export async function uploadPhotoFromDataUri(
   file: string,
   viewer: ViewerIdentity,
 ) {
-  const uploaded = await cloudinary.uploader.upload(file, {
-    folder: 'wig-ai',
-    transformation: [
-      { width: 1600, height: 1600, crop: 'limit' },
-      { fetch_format: 'auto' },
-      { quality: 'auto:good' },
-    ],
-  });
+  const separator = file.indexOf(',');
+  const header = separator === -1 ? '' : file.slice(0, separator);
 
-  const photo = await createPhoto(viewer, uploaded.secure_url);
+  if (!/^data:image\/[a-z0-9.+-]+;base64$/i.test(header)) {
+    throwApiError(400, 'PHOTO_UNREADABLE', 'לא ניתן לקרוא את התמונה.');
+  }
+
+  const buffer = Buffer.from(file.slice(separator + 1), 'base64');
+  const uploaded = await uploadPrivateSelfie(await normalizeSelfie(buffer));
+
+  const photo = await createPhoto(viewer, uploaded);
 
   return {
     photoId: photo.id,
@@ -150,7 +132,7 @@ export async function getPhotoForViewer(
 ) {
   const photo = await prisma.photo.findUnique({ where: { id: photoId } });
 
-  if (!photo) {
+  if (!photo || photo.deletedAt) {
     throwApiError(404, 'NOT_FOUND', 'Photo not found');
   }
 

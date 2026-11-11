@@ -1,5 +1,5 @@
 import BackButton from '@/src/components/BackButton';
-import { LoginForm } from '@/components/login-form';
+import { LoginForm } from '@/src/components/auth/login-form';
 import { getSafeRedirect } from '@/src/lib/auth-redirect';
 
 type LoginPageProps = {
