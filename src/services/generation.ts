@@ -6,7 +6,15 @@ import { throwApiError } from '@/src/lib/api/errors';
 import { getWigOrThrow } from '@/src/services/wig';
 import { getPhotoForViewer } from '@/src/services/photo';
 import { segmentHair } from '@/src/lib/replicate';
-import { buildHairMask, buildGeometricHairMask } from '@/src/lib/mask-utils';
+import {
+  buildCanvasImage,
+  buildHairMaskGray,
+  compositeHairOntoOriginal,
+  computeCanvasLayout,
+  orientImage,
+  resizeToContent,
+  toOpenAiMask,
+} from '@/src/lib/mask-utils';
 import { requireOwner } from '@/src/services/ownership';
 import type { ViewerIdentity } from '@/src/types/viewer';
 
@@ -201,75 +209,63 @@ export async function runGeneration(generationId: string): Promise<void> {
   }
 
   try {
-    // Run hair segmentation in parallel with image fetching AND pre-build the
-    // geometric mask — all three are independent and can run concurrently.
-    // Only attempt AI segmentation if REPLICATE_HAIR_SEGMENTATION_MODEL is set.
-    const segmentationPromise = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL
-      ? segmentHair(photo.imageUrl).catch((err: unknown) => {
-          console.warn(
-            '[generation] Hair segmentation failed — falling back to geometric mask:',
-            err,
-          );
-          return null;
-        })
-      : Promise.resolve(null);
-
-    const [selfieResponse, wigResponse, maskUrl, geometricMaskBuffer] =
-      await Promise.all([
-        fetch(photo.imageUrl),
-        fetch(wig.imageUrl),
-        segmentationPromise,
-        buildGeometricHairMask(1024, 1024),
-      ]);
+    // Segmentation needs only the photo URL, so it runs while the images download.
+    // There is deliberately no geometric fallback: guessing the hair region blanked
+    // faces on tall photos. A failed segmentation fails the generation instead.
+    const [maskUrl, selfieResponse, wigResponse] = await Promise.all([
+      segmentHair(photo.imageUrl),
+      fetch(photo.imageUrl),
+      fetch(wig.imageUrl),
+    ]);
 
     if (!selfieResponse.ok || !wigResponse.ok) {
       throw new Error('Failed to fetch images for generation.');
     }
 
-    const [selfieBuffer, wigBuffer] = await Promise.all([
+    const [selfieRaw, wigRaw] = await Promise.all([
       selfieResponse.arrayBuffer(),
       wigResponse.arrayBuffer(),
     ]);
 
-    // Normalize selfie to 1024×1024 in parallel with fetching an AI mask (if any).
-    // OpenAI requires mask and image to be the exact same dimensions.
-    const [normalizedSelfieBuffer, aiMaskBuffer] = await Promise.all([
-      sharp(Buffer.from(selfieBuffer))
-        .resize(1024, 1024, {
-          fit: 'contain',
-          position: 'centre',
-          background: { r: 255, g: 255, b: 255, alpha: 1 },
-        })
+    const oriented = await orientImage(Buffer.from(selfieRaw));
+    const layout = computeCanvasLayout(oriented.width, oriented.height);
+
+    const [contentBuffer, hairGray, wigPng] = await Promise.all([
+      resizeToContent(oriented.buffer, layout),
+      buildHairMaskGray(maskUrl, layout),
+      sharp(Buffer.from(wigRaw))
+        .rotate()
+        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
         .png()
         .toBuffer(),
-      maskUrl
-        ? buildHairMask(maskUrl, 1024, 1024).catch((err: unknown) => {
-            console.warn('[generation] Failed to build AI hair mask:', err);
-            return null;
-          })
-        : Promise.resolve(null),
     ]);
 
-    const chosenMaskBuffer = aiMaskBuffer ?? geometricMaskBuffer;
+    const [canvasBuffer, openAiMask] = await Promise.all([
+      buildCanvasImage(contentBuffer, layout),
+      toOpenAiMask(hairGray, layout),
+    ]);
 
-    // Convert all three inputs to File objects in parallel.
     const [selfieFile, wigFile, maskFile] = await Promise.all([
-      toFile(normalizedSelfieBuffer, 'selfie.png', { type: 'image/png' }),
-      toFile(Buffer.from(wigBuffer), 'wig.png', { type: 'image/png' }),
-      toFile(chosenMaskBuffer, 'mask.png', { type: 'image/png' }),
+      toFile(canvasBuffer, 'selfie.png', { type: 'image/png' }),
+      toFile(wigPng, 'wig.png', { type: 'image/png' }),
+      toFile(openAiMask, 'mask.png', { type: 'image/png' }),
     ]);
 
-    const prompt = `Replace the hair in the masked area with the hairstyle from the second image.
-Keep the face, skin tone, lighting, and identity completely unchanged.
-Blend seamlessly. Photorealistic result.`;
+    const prompt = `Image 1 is a photo of a person. Image 2 is a reference wig.
+Edit only the transparent (masked) area of image 1: replace the person's hair with the exact hairstyle from image 2,
+matching its color, length, texture, parting and fringe/bangs.
+Everything outside the mask must stay pixel-identical: the face, eyes, eyebrows, skin tone, facial hair, expression,
+glasses, headwear, clothing and background. Do not change the person's identity or age.
+The hairline must sit naturally on the forehead and the hair must follow the person's head position, with lighting and shadows matching image 1.
+Photorealistic result.`;
     const response = await openai.images.edit({
       model: 'gpt-image-2',
       image: [selfieFile, wigFile],
       mask: maskFile,
       prompt,
-      quality: 'auto',
-      size: '1024x1024',
-      output_format: 'jpeg',
+      quality: 'high',
+      size: layout.size,
+      output_format: 'png',
     });
     const base64 = response.data?.[0]?.b64_json;
 
@@ -277,8 +273,16 @@ Blend seamlessly. Photorealistic result.`;
       throw new Error('OpenAI returned no image data.');
     }
 
+    // Keep the model's hair but restore every other pixel from the original photo.
+    const finalImage = await compositeHairOntoOriginal({
+      original: contentBuffer,
+      generated: Buffer.from(base64, 'base64'),
+      hairGray,
+      layout,
+    });
+
     const { secureUrl: resultUrl } = await uploadGeneration(
-      `data:image/jpeg;base64,${base64}`,
+      `data:image/jpeg;base64,${finalImage.toString('base64')}`,
     );
 
     await prisma.generation.update({

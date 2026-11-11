@@ -4,22 +4,37 @@ import { throwApiError } from '@/src/lib/api/errors';
 /**
  * Hair segmentation model on Replicate.
  *
- * Set REPLICATE_HAIR_SEGMENTATION_MODEL in your environment to the full
- * model identifier in the format  owner/model:64-char-version-hash
+ * REPLICATE_HAIR_SEGMENTATION_MODEL: full identifier, owner/model:version-hash.
+ * Recommended: schananas/grounded_sam:<version> (text-prompted segmentation).
  *
- * Example models to consider (verify current version hash on replicate.com):
- *   - nateraw/hair-segmentation:<version>
- *   - any SAM-based segmentation model with "hair" as the text prompt
+ * Optional tuning (no code change needed when swapping models):
+ *   REPLICATE_HAIR_SEGMENTATION_INPUT        JSON merged into the model input.
+ *                                            Default targets grounded_sam.
+ *   REPLICATE_HAIR_MASK_OUTPUT_INDEX         Which item of an array output is
+ *                                            the white-on-black hair mask.
  *
- * The model must accept an `image` input (URL) and return either:
- *   - a string URL, or
- *   - an array where index 0 is the mask URL
- * pointing to a grayscale PNG where white = hair, black = background.
+ * The mask must be a grayscale image where white = hair, black = background.
  */
-const HAIR_SEGMENTATION_MODEL = process.env
-  .REPLICATE_HAIR_SEGMENTATION_MODEL as
-  | `${string}/${string}:${string}`
-  | undefined;
+const DEFAULT_MODEL_INPUT: Record<string, unknown> = {
+  mask_prompt: 'hair',
+  negative_mask_prompt: 'face, skin, ears, neck',
+  adjustment_factor: 0,
+};
+
+function getModel(): `${string}/${string}:${string}` {
+  const model = process.env.REPLICATE_HAIR_SEGMENTATION_MODEL;
+
+  if (!model) {
+    throwApiError(
+      500,
+      'REPLICATE_MISCONFIGURED',
+      'REPLICATE_HAIR_SEGMENTATION_MODEL is not set. ' +
+        'Provide a model identifier in owner/model:version format.',
+    );
+  }
+
+  return model as `${string}/${string}:${string}`;
+}
 
 function getReplicateClient(): Replicate {
   const auth = process.env.REPLICATE_API_TOKEN;
@@ -35,32 +50,46 @@ function getReplicateClient(): Replicate {
   return new Replicate({ auth });
 }
 
+function getExtraInput(): Record<string, unknown> {
+  const raw = process.env.REPLICATE_HAIR_SEGMENTATION_INPUT;
+  if (!raw) return DEFAULT_MODEL_INPUT;
+
+  try {
+    return { ...DEFAULT_MODEL_INPUT, ...JSON.parse(raw) };
+  } catch {
+    throw new Error('REPLICATE_HAIR_SEGMENTATION_INPUT is not valid JSON.');
+  }
+}
+
+function outputItemToUrl(item: unknown): string | null {
+  if (typeof item === 'string') return item;
+  // replicate v1 returns FileOutput objects with a url() method
+  if (item && typeof (item as { url?: unknown }).url === 'function') {
+    return String((item as { url: () => URL | string }).url());
+  }
+  return null;
+}
+
 /**
  * Runs a hair segmentation model on the given image URL and returns the
  * URL of the resulting grayscale mask image (white = hair region).
  */
 export async function segmentHair(imageUrl: string): Promise<string> {
-  if (!HAIR_SEGMENTATION_MODEL) {
-    throwApiError(
-      500,
-      'REPLICATE_MISCONFIGURED',
-      'REPLICATE_HAIR_SEGMENTATION_MODEL is not set. ' +
-        'Provide a model identifier in owner/model:version format.',
-    );
-  }
-
+  const model = getModel();
   const replicate = getReplicateClient();
 
-  const output = await replicate.run(HAIR_SEGMENTATION_MODEL, {
-    input: { image: imageUrl },
+  const output = await replicate.run(model, {
+    input: { ...getExtraInput(), image: imageUrl },
   });
 
-  // Models return either a URL string directly or an array of URLs
-  const maskUrl = Array.isArray(output) ? output[0] : output;
+  const index = Number(process.env.REPLICATE_HAIR_MASK_OUTPUT_INDEX ?? 0);
+  const item = Array.isArray(output) ? output[index] : output;
+  const maskUrl = outputItemToUrl(item);
 
-  if (typeof maskUrl !== 'string' || !maskUrl.startsWith('http')) {
+  if (!maskUrl || !maskUrl.startsWith('http')) {
     throw new Error(
-      `Unexpected Replicate output format for hair segmentation: ${JSON.stringify(maskUrl)}`,
+      'Unexpected Replicate output format for hair segmentation ' +
+        `(index ${index}, ${Array.isArray(output) ? `${output.length} items` : typeof output}).`,
     );
   }
 
