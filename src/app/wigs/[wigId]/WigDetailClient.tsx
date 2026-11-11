@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import BackButton from '@/src/components/BackButton';
 import Logo from '@/src/components/Logo';
 
 type Props = {
@@ -109,14 +109,7 @@ export default function WigDetailClient({
         )}
         <div className="flex items-center justify-center gap-2">
           <Logo />
-          <button
-            type="button"
-            onClick={() => router.push('/catalog')}
-            className={CHIP}
-            aria-label="חזרה"
-          >
-            <ChevronRight size={24} aria-hidden="true" />
-          </button>
+          <BackButton href="/catalog" className={CHIP} />
         </div>
       </div>
     </div>

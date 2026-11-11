@@ -1,10 +1,10 @@
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import BackButton from '@/src/components/BackButton';
 import Logo from '@/src/components/Logo';
 
 type PageHeaderProps = {
   title: string;
-  backHref: string;
+  /** Custom back destination; omit to go back in history. */
+  backHref?: string;
   backLabel?: string;
 };
 
@@ -18,9 +18,7 @@ export default function PageHeader({
       <Logo />
       <h1 className="text-xl font-semibold text-center">{title}</h1>
       <div className="flex items-center justify-end gap-1">
-        <Link href={backHref} aria-label={backLabel}>
-          <ChevronRight size={24} />
-        </Link>
+        <BackButton href={backHref} label={backLabel} />
       </div>
     </header>
   );

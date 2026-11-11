@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import BackButton from '@/src/components/BackButton';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { getWigsForAdmin } from '@/src/services/wig';
 
@@ -8,6 +9,9 @@ export default async function AdminWigsPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-6">
+      <div className="flex justify-end">
+        <BackButton href="/admin" />
+      </div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Manage Wigs</h1>
         <Link href="/admin/wigs/new" className="text-sm font-medium underline">

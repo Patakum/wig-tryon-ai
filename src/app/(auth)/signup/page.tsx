@@ -1,3 +1,4 @@
+import BackButton from '@/src/components/BackButton';
 import { SignupForm } from '@/src/components/auth/signup-form';
 import { getSafeRedirect } from '@/src/lib/auth-redirect';
 
@@ -11,6 +12,9 @@ export default async function Page({ searchParams }: SignupPageProps) {
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
+        <div className="mb-2 flex justify-end">
+          <BackButton />
+        </div>
         <SignupForm returnTo={getSafeRedirect(next)} />
       </div>
     </div>
