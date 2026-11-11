@@ -1,9 +1,13 @@
 import { redirect } from 'next/navigation';
-import { ChevronLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
+import BackButton from '@/src/components/BackButton';
 import { Button } from '@/src/components/ui/button';
 import PageContainer from '@/src/components/PageContainer';
 import { prisma } from '@/src/lib/prisma';
+
+const CHIP =
+  'flex size-10 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md ring-1 ring-black/10 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900';
 
 type InstructionsPageProps = {
   searchParams: Promise<{
@@ -22,75 +26,74 @@ export default async function InstructionsPage({
 
   const wig = await prisma.wig.findUnique({ where: { id: wigId } });
 
-  if (!wig) {
+  if (!wig || wig.archivedAt) {
     redirect('/catalog');
   }
 
   return (
-    <PageContainer className="p-4">
-      <div className="max-w-md mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <Link href={`/wigs/${wigId}`}>
-            <ChevronLeft className="w-6 h-6" />
+    <PageContainer className="p-4 h-dvh overflow-hidden">
+      <div className="max-w-md mx-auto h-full flex flex-col">
+        <div className="fixed top-4 left-4 z-20">
+          <BackButton href={`/wigs/${wigId}`} className={CHIP} />
+        </div>
+
+        <h1 className="text-2xl font-bold mb-8 text-center pt-14">תנסי בעצמך</h1>
+
+        <div className="flex-1 overflow-y-auto pb-28">
+          <div className="space-y-4">
+            <InstructionCard
+              good
+              title="הפנים נראים בבירור"
+              description="וודאי שהפנים שלך ברורים ונראים היטב"
+            />
+            <InstructionCard
+              good={false}
+              title="קשה לראות את הפנים"
+              description="הימנעי מתמונות שבהן הפנים אינם נראים בבירור"
+            />
+
+            <InstructionCard
+              good
+              title="תאורה טובה"
+              description="בחרי תמונה עם תאורה טבעית וטובה"
+            />
+            <InstructionCard
+              good={false}
+              title="תאורה רעה"
+              description="הימנעי מצללים או אור חלש"
+            />
+
+            <InstructionCard
+              good
+              title="הפנים מכוונים ישר אל המצלמה"
+              description="קחי תמונה עם הפנים מכוונים ישר אל המצלמה"
+            />
+            <InstructionCard
+              good={false}
+              title="הפנים מסובבים"
+              description="הימנעי מתמונות עם הפנים מסובבים"
+            />
+
+            <InstructionCard
+              good
+              title="ללא כובע ומשקפי שמש"
+              description="ודאי שאין כובע או משקפי שמש על הפנים"
+            />
+            <InstructionCard
+              good={false}
+              title="עם כובע ומשקפיים"
+              description="הימנעי מתמונות עם אביזרים המסתירים את הפנים"
+            />
+          </div>
+        </div>
+
+        <div className="bg-white w-full fixed bottom-4 left-1/2 z-20  max-w-md -translate-x-1/2">
+          <Link href={`/upload?wigId=${wigId}`}>
+            <Button className="w-full h-12 rounded-full text-white font-semibold">
+              המשיכי
+            </Button>
           </Link>
         </div>
-
-        <h1 className="text-2xl font-bold mb-8 text-center">תנסי בעצמך</h1>
-
-        {/* Instructions Grid */}
-        <div className="space-y-4 mb-8">
-          <InstructionCard
-            good
-            title="הפנים נראים בבירור"
-            description="וודאי שהפנים שלך ברורים ונראים היטב"
-          />
-          <InstructionCard
-            good={false}
-            title="קשה לראות את הפנים"
-            description="הימנעי מתמונות שבהן הפנים אינם נראים בבירור"
-          />
-
-          <InstructionCard
-            good
-            title="תאורה טובה"
-            description="בחרי תמונה עם תאורה טבעית וטובה"
-          />
-          <InstructionCard
-            good={false}
-            title="תאורה רעה"
-            description="הימנעי מצללים או אור חלש"
-          />
-
-          <InstructionCard
-            good
-            title="הפנים מכוונים ישר אל המצלמה"
-            description="קחי תמונה עם הפנים מכוונים ישר אל המצלמה"
-          />
-          <InstructionCard
-            good={false}
-            title="הפנים מסובבים"
-            description="הימנעי מתמונות עם הפנים מסובבים"
-          />
-
-          <InstructionCard
-            good
-            title="ללא כובע ומשקפי שמש"
-            description="ודאי שאין כובע או משקפי שמש על הפנים"
-          />
-          <InstructionCard
-            good={false}
-            title="עם כובע ומשקפיים"
-            description="הימנעי מתמונות עם אביזרים המסתירים את הפנים"
-          />
-        </div>
-
-        {/* Continue Button */}
-        <Link href={`/upload?wigId=${wigId}`}>
-          <Button className="w-full h-12 rounded-full text-white font-semibold">
-            המשיכי
-          </Button>
-        </Link>
       </div>
     </PageContainer>
   );

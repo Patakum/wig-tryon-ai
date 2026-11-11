@@ -14,14 +14,17 @@ export async function uploadWigAction(
     await requireAdmin();
 
     const file = parseImageFormFile(formData);
-    const { name, description, price } = parseWigFormData(formData);
+    const { name, description, price, color, length, material } = parseWigFormData(formData);
 
     const imageUrl = await uploadWigReferenceImage(file);
     await createWig({
       name,
       imageUrl,
       description: description ?? null,
-      price,
+      price: price ?? null,
+      color: color ?? null,
+      length: length ?? null,
+      material: material ?? null,
     });
 
     revalidatePath('/catalog');

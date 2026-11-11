@@ -21,19 +21,26 @@ export default function HeroSection() {
         priority
       />
 
-      <div className="absolute top-4 left-2 z-10">
-        <Logo size={140} />
+      <div className="absolute top-4 left-2 z-10 [&_img]:size-[88px] sm:[&_img]:size-[120px]">
+        <Logo size={120} />
       </div>
 
-      <nav className="absolute top-4 right-4 z-10" aria-label="Main actions">
-        <MainNav />
-      </nav>
+      <div className="absolute top-3 right-2 z-10">
+        <MainNav variant="full" />
+      </div>
 
-      <div className="absolute top-1/8 right-4 z-10 text-center">
-        <h1 className="text-xl md:text-3xl font-bold tracking-wider">
-          TRY WIGS
+      {/* Soft dark fade behind the headline only, so white text stays readable
+          on any photo without dimming the nav icons above it. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 z-0 h-[48%] bg-[radial-gradient(ellipse_at_72%_40%,rgba(0,0,0,0.62)_0%,rgba(0,0,0,0.35)_40%,transparent_72%)]"
+      />
+
+      <div className="absolute top-[14%] right-4 z-10 max-w-[64%]">
+        <h1 className="text-2xl md:text-5xl font-bold leading-snug text-white drop-shadow-md">
+          תנסי פאה על עצמך,
           <br />
-          IN REAL TIME
+          אל תחכי עד שתגיעי לחנות
         </h1>
       </div>
 

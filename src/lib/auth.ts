@@ -4,6 +4,7 @@ import { admin, twoFactor } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
 import { passkey } from '@better-auth/passkey';
 import { headers } from 'next/headers';
+import { isFakeProviders } from '@/src/lib/fake-providers';
 import { prisma } from '@/src/lib/prisma';
 
 export const auth = betterAuth({
@@ -11,7 +12,7 @@ export const auth = betterAuth({
     provider: 'postgresql',
   }),
   baseURL: {
-    allowedHosts: ['wig-tryon-*.vercel.app', 'localhost:3000'],
+    allowedHosts: ['wig-tryon-*.vercel.app', 'localhost:3000', 'localhost:3001'],
   },
   socialProviders:
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -28,11 +29,15 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
   },
   rateLimit: {
-    enabled: true,
+    // The end-to-end suite signs up many accounts within seconds.
+    enabled: !isFakeProviders(),
     window: 60,
     max: 100,
   },
   advanced: {
+    // WebKit rejects Secure cookies on plain-http localhost, which the
+    // end-to-end suite uses; only the fake-provider test mode turns them off.
+    ...(isFakeProviders() ? { useSecureCookies: false } : {}),
     database: {
       generateId: 'uuid',
     },

@@ -1,0 +1,1 @@
+ALTER TABLE "Wig" ADD COLUMN "archivedAt" TIMESTAMP(3);

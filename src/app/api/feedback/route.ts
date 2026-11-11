@@ -9,20 +9,17 @@ import { createFeedbackForGeneration } from '@/src/services/generation';
 
 export async function POST(req: Request) {
   try {
-    const [user, viewer] = await Promise.all([
-      requireSessionUser(),
-      getOptionalViewer(),
-    ]);
+    await requireSessionUser();
+    const viewer = await getOptionalViewer();
     const { generationId, message } = await parseJsonBody(req, feedbackSchema);
 
     const feedback = await createFeedbackForGeneration({
       generationId,
-      userId: user.id,
       viewer,
       message,
     });
 
-    return ok(feedback, 201);
+    return ok(feedback);
   } catch (error) {
     return normalizeErrorToResponse(error, 'Failed to save feedback');
   }
